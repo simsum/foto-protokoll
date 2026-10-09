@@ -2,6 +2,11 @@
 
 Alle nennenswerten Änderungen. Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.5.1] – 2026-10-09
+
+### Geändert
+- Ein gewählter Ausschnitt wird in der Vorschau größer aus dem Original gerechnet und wirkt dadurch nicht mehr pixelig (bis höchstens zur Auflösung des Originals). Das PDF nutzte bereits die Originalpixel.
+
 ## [0.5.0] – 2026-10-09
 
 ### Neu

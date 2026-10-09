@@ -289,7 +289,7 @@ svg.marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-eve
       <p class="hint">OpenStreetMap liefert Straße und Ort und bekommt dafür die Koordinaten. Offline wird der nächstgelegene Ort aus einer eingebauten Liste genommen. Jeder Ort ist pro Foto änderbar.</p>
       <p class="notice" id="osmNotice" hidden>OpenStreetMap ist hier nicht erreichbar. Orte werden offline ermittelt.</p>
     </section>
-    <p class="hint credits">Foto-Protokoll v0.5.0 · Ortsliste: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) · Adressen: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</p>
+    <p class="hint credits">Foto-Protokoll v0.5.1 · Ortsliste: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) · Adressen: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</p>
   </aside>
 
   <section class="work">
@@ -486,7 +486,9 @@ function drawView(g, bmp, p, w, h, full) {
   g.imageSmoothingQuality = "high"; g.drawImage(bmp, 0, 0); g.restore();
 }
 async function paintThumb(p, bmp) {
-  const s = Math.min(1, 640 / Math.max(p.w, p.h));
+  // Bei einem Ausschnitt wird das Vorschaubild größer aus dem Original gerechnet (gleiche Schärfe wie ohne Ausschnitt), nie über die Originalpixel hinaus
+  const [rw, rh] = rotDims(p), k = Math.max(1, Math.max(rw, rh) / Math.max(p.w, p.h));
+  const s = Math.min(1, Math.min(640 * k, 1920) / Math.max(p.w, p.h));
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(p.w * s)); c.height = Math.max(1, Math.round(p.h * s));
   drawView(c.getContext("2d"), bmp, p, c.width, c.height);

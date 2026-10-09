@@ -1,6 +1,6 @@
 {
   "name": "foto-protokoll",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Fotos mit Datum, Uhrzeit, GPS und Ort als PDF – läuft komplett im Browser.",
   "license": "MIT",
   "private": true,

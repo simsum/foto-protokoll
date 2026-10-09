@@ -33,6 +33,7 @@ Die Originaldatei und die Markierungen werden nie verändert. `rot` und `crop` b
 - `viewMarks()` rechnet Markierungen vom Original in die Ansicht um (`toRot()`, Versatz um den Ausschnitt) und lässt solche aus, deren Mittelpunkt außerhalb liegt. `unviewMark()` rechnet neu gesetzte Markierungen zurück.
 - `NUMS(p)` liefert nur sichtbare Nummern; Beschriftung und Notizliste im PDF stimmen damit mit dem Bild überein.
 - Beim Drehen wird ein vorhandener Ausschnitt mitgedreht (`rotateView()`). `p.w` × `p.h` ist die Ansicht und bestimmt Seitenverhältnis und Platz im Layout.
+- `paintThumb()` rechnet das Vorschaubild bei einem Ausschnitt größer (Faktor aus dem Verhältnis ganzes Bild zu Ausschnitt, höchstens 1920 px und nie über die Originalpixel), damit der Ausschnitt in der Vorschau scharf bleibt. Das PDF nutzt über `renderJpeg()` ohnehin die Originalpixel.
 - Die eingebetteten Originale (auch verkleinerte) werden nicht gedreht oder zugeschnitten.
 
 ### Seitenmodell (`buildModel()`)

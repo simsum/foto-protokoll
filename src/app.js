@@ -130,7 +130,9 @@ function drawView(g, bmp, p, w, h, full) {
   g.imageSmoothingQuality = "high"; g.drawImage(bmp, 0, 0); g.restore();
 }
 async function paintThumb(p, bmp) {
-  const s = Math.min(1, 640 / Math.max(p.w, p.h));
+  // Bei einem Ausschnitt wird das Vorschaubild größer aus dem Original gerechnet (gleiche Schärfe wie ohne Ausschnitt), nie über die Originalpixel hinaus
+  const [rw, rh] = rotDims(p), k = Math.max(1, Math.max(rw, rh) / Math.max(p.w, p.h));
+  const s = Math.min(1, Math.min(640 * k, 1920) / Math.max(p.w, p.h));
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(p.w * s)); c.height = Math.max(1, Math.round(p.h * s));
   drawView(c.getContext("2d"), bmp, p, c.width, c.height);

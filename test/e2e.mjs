@@ -177,6 +177,9 @@ await test("Drehen und Ausschnitt: Markierungen folgen, Originale bleiben bitgen
     await crop(0.3, 0.95);
     assert.match(await p.textContent(`${card} .tbtn .mk`), /1 Markierung/);
     assert.ok((await ratio(`${card} .tbtn`)) > 0, "Seitenverhältnis");
+    // der Ausschnitt wird größer aus dem Original gerechnet (nicht nur die 640 px des ganzen Fotos)
+    const px = await p.$eval(`${card} img.thumb`, (im) => Math.max(im.naturalWidth, im.naturalHeight));
+    assert.ok(px > 700, `Vorschau des Ausschnitts zu klein: ${px} px`);
   });
   for (const f of fixtures) assert.ok(pdf.indexOf(readFileSync(join(fixDir, f))) >= 0, `Original ${f} nicht bitgenau eingebettet`);
   assert.ok(pdfText(pdf).includes("Fühler lose"), "Notiz zur sichtbaren Marke fehlt im PDF");

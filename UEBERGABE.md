@@ -1,4 +1,4 @@
-# Übergabe – Stand 09.10.2026 (v0.5.0)
+# Übergabe – Stand 09.10.2026 (v0.5.1)
 
 ## Was fertig ist
 
@@ -24,4 +24,4 @@ Mit Claude weiterarbeiten: Ordner in Claude (Cowork oder Claude Code) öffnen. C
 ## Offene Punkte
 
 1. **OpenStreetMap-Abfrage** aus der lokalen Datei (`file://`) ist noch nicht mit echtem Netz getestet. Auf der Webseite ist sie nutzbar.
-2. **Claude-Artifact** auf claude.ai (privat, Version 5) entspricht v0.5.0. Bei Änderungen `dist/artifact.html` neu veröffentlichen (siehe `CLAUDE.md`). Link: https://claude.ai/artifact/Kaj9KAxqtwM9NciN4jzapa
+2. **Claude-Artifact** auf claude.ai (privat, Version 6) entspricht v0.5.1. Bei Änderungen `dist/artifact.html` neu veröffentlichen (siehe `CLAUDE.md`). Link: https://claude.ai/artifact/Kaj9KAxqtwM9NciN4jzapa

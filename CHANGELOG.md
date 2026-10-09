@@ -6,6 +6,7 @@ Alle nennenswerten Änderungen. Versionen folgen [Semantic Versioning](https://s
 
 ### Geändert
 - Ein gewählter Ausschnitt wird in der Vorschau größer aus dem Original gerechnet und wirkt dadurch nicht mehr pixelig (bis höchstens zur Auflösung des Originals). Das PDF nutzte bereits die Originalpixel.
+- Fotokarten: Die Aktionsbuttons (Markieren, Drehen, Verschieben, Entfernen) stehen jetzt in einer Reihe oben rechts statt untereinander. Auf dem Handy bleiben sie in einer eigenen Zeile unter der Karte.
 
 ## [0.5.0] – 2026-10-09
 

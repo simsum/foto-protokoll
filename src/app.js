@@ -102,17 +102,73 @@ async function decodable(p) {
   }
 }
 
-async function makeThumb(p) {
-  const blob = await decodable(p);
-  const bmp = await createImageBitmap(blob);
-  p.w = bmp.width; p.h = bmp.height;
-  const s = Math.min(1, 640 / Math.max(bmp.width, bmp.height));
+/* ---------- Ansicht: Drehen und Ausschnitt (die Originaldatei bleibt unverändert) ----------
+   Markierungen liegen in Pixeln des ausgerichteten Originals (bw × bh). Drehung (rot, 0–3 × 90° im Uhrzeigersinn)
+   und Ausschnitt (crop, in Pixeln des gedrehten Bildes) bestimmen nur, was in Vorschau und PDF zu sehen ist.
+   p.w × p.h ist die Größe der Ansicht (gedreht und zugeschnitten) in Originalpixeln. */
+const rotDims = (p) => (p.rot % 2 ? [p.bh, p.bw] : [p.bw, p.bh]);
+const toRot = (p, x, y) => (p.rot === 1 ? [p.bh - y, x] : p.rot === 2 ? [p.bw - x, p.bh - y] : p.rot === 3 ? [y, p.bw - x] : [x, y]);
+const fromRot = (p, x, y) => (p.rot === 1 ? [y, p.bh - x] : p.rot === 2 ? [p.bw - x, p.bh - y] : p.rot === 3 ? [p.bw - y, x] : [x, y]);
+function viewBox(p, full) { const [rw, rh] = rotDims(p); return full || !p.crop ? { x: 0, y: 0, w: rw, h: rh } : p.crop; }
+function applyView(p) { const v = viewBox(p); p.w = v.w; p.h = v.h; }
+function mapMark(m, f) { const o = { ...m }; [o.x, o.y] = f(m.x, m.y); if (m.t === "arrow") [o.x2, o.y2] = f(m.x2, m.y2); return o; }
+function viewMarks(p, full) {
+  const v = viewBox(p, full), out = [];
+  for (const m of p.marks || []) {
+    const q = mapMark(m, (x, y) => { const [a, b] = toRot(p, x, y); return [a - v.x, b - v.y]; });
+    if (q.x < 0 || q.y < 0 || q.x > v.w || q.y > v.h) continue; // außerhalb des Ausschnitts
+    q.src = m; out.push(q);
+  }
+  return out;
+}
+function unviewMark(p, m, full) { const v = viewBox(p, full); return mapMark(m, (x, y) => fromRot(p, x + v.x, y + v.y)); }
+const ROT_T = [[1, 0, 0, 1], [0, 1, -1, 0], [-1, 0, 0, -1], [0, -1, 1, 0]];
+function drawView(g, bmp, p, w, h, full) {
+  const v = viewBox(p, full), [a, b, c, d] = ROT_T[p.rot];
+  g.save(); g.scale(w / v.w, h / v.h); g.translate(-v.x, -v.y);
+  g.transform(a, b, c, d, p.rot === 1 ? p.bh : p.rot === 2 ? p.bw : 0, p.rot === 2 ? p.bh : p.rot === 3 ? p.bw : 0);
+  g.imageSmoothingQuality = "high"; g.drawImage(bmp, 0, 0); g.restore();
+}
+async function paintThumb(p, bmp) {
+  const s = Math.min(1, 640 / Math.max(p.w, p.h));
   const c = document.createElement("canvas");
-  c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
-  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  c.width = Math.max(1, Math.round(p.w * s)); c.height = Math.max(1, Math.round(p.h * s));
+  drawView(c.getContext("2d"), bmp, p, c.width, c.height);
+  return URL.createObjectURL(await new Promise((r) => c.toBlob(r, "image/jpeg", 0.82)));
+}
+async function makeThumb(p) {
+  const bmp = await createImageBitmap(await decodable(p));
+  p.bw = bmp.width; p.bh = bmp.height; applyView(p);
+  p.thumb = await paintThumb(p, bmp);
   bmp.close();
-  const tb = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.82));
-  p.thumb = URL.createObjectURL(tb);
+}
+async function refreshView(p) {
+  applyView(p); render();
+  const my = (p.tv = (p.tv || 0) + 1);
+  try {
+    const bmp = await createImageBitmap(await decodable(p));
+    const url = await paintThumb(p, bmp); bmp.close();
+    if (my !== p.tv) { URL.revokeObjectURL(url); return; }
+    const old = p.thumb; p.thumb = url;
+    if (old) setTimeout(() => URL.revokeObjectURL(old), 1500);
+  } catch (e) { console.warn(e); }
+  render();
+}
+function rotateView(p, dir) { // dir: +1 im Uhrzeigersinn, -1 dagegen
+  const [rw, rh] = rotDims(p), c = p.crop;
+  if (c) p.crop = dir > 0 ? { x: rh - c.y - c.h, y: c.x, w: c.h, h: c.w } : { x: c.y, y: rw - c.x - c.w, w: c.h, h: c.w };
+  p.rot = (p.rot + dir + 4) % 4;
+  return refreshView(p);
+}
+function setCrop(p, c) {
+  const [rw, rh] = rotDims(p);
+  if (c) {
+    const x = Math.max(0, Math.round(c.x)), y = Math.max(0, Math.round(c.y));
+    c = { x, y, w: Math.min(rw - x, Math.round(c.w)), h: Math.min(rh - y, Math.round(c.h)) };
+    if (c.w < rw * 0.05 || c.h < rh * 0.05 || (c.w >= rw && c.h >= rh)) c = null;
+  }
+  p.crop = c;
+  return refreshView(p);
 }
 
 async function addFiles(files) {
@@ -120,7 +176,7 @@ async function addFiles(files) {
   if (!list.length) { toast("Keine Bilddateien gefunden."); return; }
   if (photos.some((p) => p.sample)) { photos.forEach((p) => p.thumb && URL.revokeObjectURL(p.thumb)); photos = []; }
   const fresh = list.map((f) => ({ id: ++uid, file: f, name: f.name, size: f.size, dt: null, dtSrc: "", gps: null,
-    place: "", placeSrc: "", note: "", thumb: "", w: 0, h: 0, err: "", busy: true, marks: [] }));
+    place: "", placeSrc: "", note: "", thumb: "", w: 0, h: 0, bw: 0, bh: 0, rot: 0, crop: null, err: "", busy: true, marks: [] }));
   photos.push(...fresh);
   render();
   for (const p of fresh) {
@@ -234,9 +290,9 @@ function dist(a1, o1, a2, o2) {
   return Math.sqrt(x * x + y * y) * R;
 }
 
-/* ---------- Markierungen (Koordinaten in Bildpixeln, ausgerichtetes Bild) ---------- */
+/* ---------- Markierungen (Koordinaten in Pixeln des ausgerichteten Originals) ---------- */
 function markGeom(m, p) {
-  const base = Math.min(p.w || 1000, p.h || 750), sw = Math.max(2, base * 0.0085);
+  const base = Math.min(p.bw || p.w || 1000, p.bh || p.h || 750), sw = Math.max(2, base * 0.0085);
   const r = (n) => +n.toFixed(1);
   if (m.t === "num") return { sw, num: true, r: Math.max(m.r, sw * 3) };
   if (m.t === "circle") {
@@ -252,13 +308,15 @@ function markGeom(m, p) {
 const haloOf = (c) => (c === "#FFC400" ? "#1A1A1A" : "#FFFFFF");
 const numInk = (c) => (c === "#FFC400" ? "#1A1A1A" : "#FFFFFF");
 const circlePath = (x, y, R) => { const r = (n) => +n.toFixed(1); return `M${r(x - R)} ${r(y)}A${r(R)} ${r(R)} 0 1 0 ${r(x + R)} ${r(y)}A${r(R)} ${r(R)} 0 1 0 ${r(x - R)} ${r(y)}Z`; };
-function marksSvg(p, style = "") {
-  if (!p.marks || !p.marks.length || !p.w) return "";
+function marksSvg(p, style = "", opt = {}) {
+  const vm = viewMarks(p, opt.full); if (opt.extra) vm.push(opt.extra);
+  if (!vm.length || !p.w) return "";
+  const vb = viewBox(p, opt.full), nums = vm.filter((q) => q.t === "num");
   let a = "", b = "";
-  for (const m of p.marks) {
+  for (const m of vm) {
     const g = markGeom(m, p), halo = haloOf(m.c), hw = g.sw * 2.2;
     if (g.num) {
-      const n = (p.marks.filter((q) => q.t === "num").indexOf(m) + 1), fs = (g.r * 1.3).toFixed(1);
+      const n = nums.indexOf(m) + 1, fs = (g.r * 1.3).toFixed(1);
       a += `<circle cx="${m.x.toFixed(1)}" cy="${m.y.toFixed(1)}" r="${g.r.toFixed(1)}" fill="${halo}" fill-opacity=".85" stroke="${halo}" stroke-opacity=".85" stroke-width="${(g.sw * 2.4).toFixed(1)}"/>`;
       b += `<circle cx="${m.x.toFixed(1)}" cy="${m.y.toFixed(1)}" r="${g.r.toFixed(1)}" fill="${m.c}"/><text x="${m.x.toFixed(1)}" y="${m.y.toFixed(1)}" dy=".36em" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-weight="700" font-size="${fs}" fill="${numInk(m.c)}">${n}</text>`;
       continue;
@@ -266,11 +324,11 @@ function marksSvg(p, style = "") {
     g.stroke.forEach((d) => { a += `<path d="${d}" fill="none" stroke="${halo}" stroke-opacity=".85" stroke-width="${hw}" stroke-linecap="round"/>`; b += `<path d="${d}" fill="none" stroke="${m.c}" stroke-width="${g.sw}" stroke-linecap="round"/>`; });
     g.fill.forEach((d) => { a += `<path d="${d}" fill="${halo}" fill-opacity=".85" stroke="${halo}" stroke-opacity=".85" stroke-width="${hw - g.sw}" stroke-linejoin="round"/>`; b += `<path d="${d}" fill="${m.c}"/>`; });
   }
-  return `<svg class="marks" viewBox="0 0 ${p.w} ${p.h}" preserveAspectRatio="none" style="${style}" aria-hidden="true">${a}${b}</svg>`;
+  return `<svg class="marks" viewBox="0 0 ${vb.w} ${vb.h}" preserveAspectRatio="none" style="${style}" aria-hidden="true">${a}${b}</svg>`;
 }
 
 /* ---------- Editor ---------- */
-let edP = null, edTool = "circle", edColor = "#E3242B", edDraft = null, edUrl = "";
+let edP = null, edTool = "circle", edColor = "#E3242B", edDraft = null, edUrl = "", edCrop = false, edRect = null;
 try { const s = JSON.parse(localStorage.getItem("fotoprotokoll.ed") || "null"); if (s) { edTool = s.t || edTool; edColor = s.c || edColor; } } catch {}
 function syncEdButtons() {
   $("#edTool").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === edTool)));
@@ -279,36 +337,51 @@ function syncEdButtons() {
 }
 async function openEditor(p) {
   if (!p.w || p.err) { toast("Für dieses Foto gibt es keine Vorschau zum Markieren."); return; }
-  edP = p; p.marks = p.marks || [];
-  const blob = await decodable(p).catch(() => null); if (!blob) return;
-  edUrl = URL.createObjectURL(blob);
-  $("#edPic").src = edUrl;
-  $("#edName").textContent = p.name;
-  const ar = p.w / p.h;
-  $("#edImg").style.aspectRatio = `${p.w} / ${p.h}`;
-  sizeEd();
-  $("#edSvg").setAttribute("viewBox", `0 0 ${p.w} ${p.h}`);
-  syncEdButtons(); drawEd(); renderEdNotes();
+  edP = p; p.marks = p.marks || []; edCrop = false; edRect = null;
+  if (!await decodable(p).catch(() => null)) return;
   $("#edName").textContent = "Foto " + photoNo(p) + " · " + p.name;
+  syncEdButtons(); renderEdNotes();
+  await edLoadImage();
   $("#editor").hidden = false;
   $("#edDone").focus();
 }
+// zeigt die Ansicht (gedreht und zugeschnitten) bzw. im Ausschnitt-Modus das ganze gedrehte Bild
+async function edLoadImage() {
+  const p = edP; if (!p) return;
+  const jpg = await renderJpeg(p, 1800, 1800, edCrop).catch(() => null);
+  if (!jpg || edP !== p) return;
+  const url = URL.createObjectURL(new Blob([jpg], { type: "image/jpeg" }));
+  if (edUrl) URL.revokeObjectURL(edUrl);
+  edUrl = url; $("#edPic").src = url;
+  const v = viewBox(p, edCrop);
+  $("#edImg").style.aspectRatio = `${v.w} / ${v.h}`;
+  $("#edSvg").setAttribute("viewBox", `0 0 ${v.w} ${v.h}`);
+  $("#editor").classList.toggle("cropping", edCrop);
+  $("#edCrop").setAttribute("aria-pressed", String(edCrop));
+  $("#edCropReset").disabled = !p.crop;
+  $("#edHint").hidden = edCrop; $("#edHintCrop").hidden = !edCrop;
+  sizeEd(); drawEd(); renderEdNotes();
+}
 function closeEditor() {
-  $("#editor").hidden = true; edDraft = null;
+  $("#editor").hidden = true; edDraft = null; edRect = null; edCrop = false; edStart = null;
   if (edUrl) { URL.revokeObjectURL(edUrl); edUrl = ""; }
   edP = null; render();
 }
+function cropOverlay() {
+  const [rw, rh] = rotDims(edP), c = edRect || edP.crop; if (!c) return "";
+  return `<path d="M0 0H${rw}V${rh}H0Z M${c.x} ${c.y}h${c.w}v${c.h}h${-c.w}Z" fill="rgba(0,0,0,.55)" fill-rule="evenodd"/>`
+    + `<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+}
 function drawEd() {
   if (!edP) return;
-  const tmp = { ...edP, marks: edDraft ? [...edP.marks, edDraft] : edP.marks };
-  const html = marksSvg(tmp);
-  $("#edSvg").innerHTML = html ? html.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "") : "";
+  const html = marksSvg(edP, "", { full: edCrop, extra: edDraft });
+  $("#edSvg").innerHTML = (html ? html.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "") : "") + (edCrop ? cropOverlay() : "");
   $("#edUndo").disabled = !edP.marks.length; $("#edClear").disabled = !edP.marks.length;
 }
 function sizeEd() {
   if (!edP) return;
-  const n = NUMS(edP).length, extra = n ? 30 + 40 * Math.min(n, 4) : 0;
-  $("#edImg").style.width = `min(100%, calc((100dvh - ${230 + extra}px) * ${(edP.w / edP.h).toFixed(4)}))`;
+  const v = viewBox(edP, edCrop), n = NUMS(edP).length, extra = n ? 30 + 40 * Math.min(n, 4) : 0;
+  $("#edImg").style.width = `min(100%, calc((100dvh - ${250 + extra}px) * ${(v.w / v.h).toFixed(4)}))`;
 }
 function renderEdNotes() {
   sizeEd();
@@ -320,9 +393,10 @@ function renderEdNotes() {
 $("#edNotes").addEventListener("input", (e) => { const k = e.target.dataset.k; if (k == null || !edP) return; NUMS(edP)[+k].note = e.target.value; });
 $("#edNotes").addEventListener("click", (e) => { const b = e.target.closest("button[data-k]"); if (!b || !edP) return; const m = NUMS(edP)[+b.dataset.k]; edP.marks.splice(edP.marks.indexOf(m), 1); drawEd(); renderEdNotes(); });
 function edPoint(e) {
-  const rc = $("#edSvg").getBoundingClientRect();
-  return { x: Math.max(0, Math.min(edP.w, (e.clientX - rc.left) / rc.width * edP.w)), y: Math.max(0, Math.min(edP.h, (e.clientY - rc.top) / rc.height * edP.h)) };
+  const rc = $("#edSvg").getBoundingClientRect(), v = viewBox(edP, edCrop);
+  return { x: Math.max(0, Math.min(v.w, (e.clientX - rc.left) / rc.width * v.w)), y: Math.max(0, Math.min(v.h, (e.clientY - rc.top) / rc.height * v.h)) };
 }
+const rectOf = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) });
 function shapeFrom(a, b) {
   const base = Math.min(edP.w, edP.h), d = Math.hypot(b.x - a.x, b.y - a.y), drag = d > base * 0.02;
   if (edTool === "circle") return { t: "circle", x: a.x, y: a.y, r: drag ? d : base * 0.075, c: edColor };
@@ -333,11 +407,32 @@ function shapeFrom(a, b) {
   return { t: "arrow", x: a.x, y: a.y, x2: a.x + vx / n * base * 0.2, y2: a.y + vy / n * base * 0.2, c: edColor };
 }
 let edStart = null;
-$("#edSvg").addEventListener("pointerdown", (e) => { if (!edP) return; e.preventDefault(); $("#edSvg").setPointerCapture(e.pointerId); edStart = edPoint(e); edDraft = shapeFrom(edStart, edStart); drawEd(); });
-$("#edSvg").addEventListener("pointermove", (e) => { if (!edStart) return; edDraft = shapeFrom(edStart, edPoint(e)); drawEd(); });
-const edEnd = (e) => { if (!edStart) return; const m = shapeFrom(edStart, edPoint(e)); edP.marks.push(m); edStart = null; edDraft = null; drawEd(); if (m.t === "num") renderEdNotes(); };
+$("#edSvg").addEventListener("pointerdown", (e) => {
+  if (!edP) return; e.preventDefault(); $("#edSvg").setPointerCapture(e.pointerId); edStart = edPoint(e);
+  if (edCrop) { edRect = null; return; }
+  edDraft = shapeFrom(edStart, edStart); drawEd();
+});
+$("#edSvg").addEventListener("pointermove", (e) => {
+  if (!edStart) return;
+  if (edCrop) { edRect = rectOf(edStart, edPoint(e)); drawEd(); return; }
+  edDraft = shapeFrom(edStart, edPoint(e)); drawEd();
+});
+const edEnd = async (e) => {
+  if (!edStart) return;
+  if (edCrop) { // Ausschnitt übernehmen und zur bearbeiteten Ansicht zurück
+    const r = rectOf(edStart, edPoint(e)); edStart = null; edRect = null;
+    const [rw, rh] = rotDims(edP);
+    if (r.w > rw * 0.05 && r.h > rh * 0.05) { edCrop = false; await setCrop(edP, r); await edLoadImage(); } else drawEd();
+    return;
+  }
+  const m = shapeFrom(edStart, edPoint(e)); edP.marks.push(unviewMark(edP, m)); edStart = null; edDraft = null; drawEd(); if (m.t === "num") renderEdNotes();
+};
 $("#edSvg").addEventListener("pointerup", edEnd);
-$("#edSvg").addEventListener("pointercancel", () => { edStart = null; edDraft = null; drawEd(); });
+$("#edSvg").addEventListener("pointercancel", () => { edStart = null; edDraft = null; edRect = null; drawEd(); });
+$("#edRotL").addEventListener("click", async () => { await rotateView(edP, -1); await edLoadImage(); });
+$("#edRotR").addEventListener("click", async () => { await rotateView(edP, 1); await edLoadImage(); });
+$("#edCrop").addEventListener("click", async () => { edCrop = !edCrop; edRect = null; await edLoadImage(); });
+$("#edCropReset").addEventListener("click", async () => { edCrop = false; await setCrop(edP, null); await edLoadImage(); });
 $("#edTool").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { edTool = b.dataset.v; syncEdButtons(); } });
 $("#edColor").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { edColor = b.dataset.v; syncEdButtons(); } });
 $("#edUndo").addEventListener("click", () => { edP.marks.pop(); drawEd(); renderEdNotes(); });
@@ -422,9 +517,9 @@ async function compressOriginal(p, orig) {
   return { bytes: jpg, name, mime: "image/jpeg", compressed: true, px: `${c.width}×${c.height}` };
 }
 function estEmbedded(p) {
-  if (!cfg.cmp || !p.w) return p.size;
-  const s = Math.min(1, (+cfg.cmpEdge || 2400) / Math.max(p.w, p.h));
-  return Math.min(p.size, p.w * p.h * s * s * 0.2);
+  if (!cfg.cmp || !p.bw) return p.size;
+  const s = Math.min(1, (+cfg.cmpEdge || 2400) / Math.max(p.bw, p.bh));
+  return Math.min(p.size, p.bw * p.bh * s * s * 0.2);
 }
 
 /* ---------- Layout (in pt, Ursprung oben links) ---------- */
@@ -639,7 +734,7 @@ function coverPages(W, H, hd) {
 /* ---------- Seitenmodell (pt, Ursprung oben links) ---------- */
 const M = 40, GAP = 16, FOOT = 20;
 const C_INK = "#1E2324", C_MUT = "#6E7778", C_ACC = "#0B6B6B", C_RULE = "#C4CBCA";
-const NUMS = (p) => (p.marks || []).filter((m) => m.t === "num");
+const NUMS = (p) => viewMarks(p).filter((m) => m.t === "num").map((m) => m.src); // nur Nummern im sichtbaren Ausschnitt
 const photoNo = (p) => photos.indexOf(p) + 1;
 
 function pageSize() { let [W, H] = PAGE[cfg.fmt] || PAGE.A4; if (cfg.orient === "l") [W, H] = [H, W]; return [W, H]; }
@@ -783,6 +878,8 @@ const ICON = {
   down: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 3v10M3.5 8.5 8 13l4.5-4.5"/></svg>',
   del: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
   mark: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2.5 13.5l.8-3.3 7.6-7.6 2.5 2.5-7.6 7.6z M9.6 3.9l2.5 2.5"/></svg>',
+  rotl: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 6.2A5 5 0 1 1 3 9.5M3 2.8v3.6h3.6"/></svg>',
+  rotr: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.8 6.2A5 5 0 1 0 13 9.5M13 2.8v3.6H9.4"/></svg>',
   clip: '<svg viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8.5 5v6a2.5 2.5 0 0 1-5 0V3.8a1.8 1.8 0 0 1 3.6 0V10.5a.9.9 0 0 1-1.8 0V5"/></svg>',
 };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -805,6 +902,7 @@ function draw() {
   const active = document.activeElement;
   const keepFocus = active && listEl.contains(active) && active.tagName === "INPUT" ? { id: active.id, s: active.selectionStart, e: active.selectionEnd } : null;
   $("#listHead").textContent = `Fotos (${photos.length})`;
+  let nm = 0;
   listEl.innerHTML = photos.map((p, i) => {
     const chip = p.busy ? '<span class="chip">wird gelesen</span>'
       : !p.gps ? '<span class="chip warn">kein GPS</span>'
@@ -815,7 +913,7 @@ function draw() {
     const sample = p.sample ? '<span class="chip warn">Beispiel</span>' : "";
     const date = p.dt ? fmtDate(p.dt) + (p.dtSrc === "datei" ? " (Dateidatum)" : "") : "ohne Datum";
     return `<article class="card" data-id="${p.id}">
-      ${p.thumb ? `<button type="button" class="tbtn" data-a="mark" aria-label="${esc(p.name)} markieren" style="aspect-ratio:${p.w}/${p.h}"><img class="thumb" alt="" src="${p.thumb}">${marksSvg(p)}<span class="mk">${p.marks && p.marks.length ? p.marks.length + " Markierung" + (p.marks.length > 1 ? "en" : "") : "Markieren"}</span></button>` : `<div class="thumb missing">${esc(p.err || "lädt …")}</div>`}
+      ${p.thumb ? `<button type="button" class="tbtn" data-a="mark" aria-label="${esc(p.name)} markieren" style="aspect-ratio:${p.w}/${p.h}"><img class="thumb" alt="" src="${p.thumb}">${marksSvg(p)}<span class="mk">${(nm = viewMarks(p).length) ? nm + " Markierung" + (nm > 1 ? "en" : "") : "Markieren"}</span></button>` : `<div class="thumb missing">${esc(p.err || "lädt …")}</div>`}
       <div class="meta">
         <div class="top"><span class="fno">Foto ${i + 1}</span><span class="fname">${esc(p.name)}</span>${sample}${chip}</div>
         <div class="facts"><span>${esc(date)}</span><span>${fmtSize(p.size)}</span>${p.gps ? `<a href="${mapUrl(p.gps)}" target="_blank" rel="noopener">${fmtGps(p.gps)}</a>` : ""}</div>
@@ -826,6 +924,8 @@ function draw() {
       </div>
       <div class="acts">
         <button class="icon" type="button" data-a="mark" aria-label="Markieren" title="Kreis oder Pfeil setzen" ${p.thumb ? "" : "disabled"}>${ICON.mark}</button>
+        <button class="icon" type="button" data-a="rotl" aria-label="Links drehen" title="Links drehen" ${p.thumb ? "" : "disabled"}>${ICON.rotl}</button>
+        <button class="icon" type="button" data-a="rotr" aria-label="Rechts drehen" title="Rechts drehen" ${p.thumb ? "" : "disabled"}>${ICON.rotr}</button>
         <button class="icon" type="button" data-a="up" aria-label="Nach oben" ${i === 0 ? "disabled" : ""}>${ICON.up}</button>
         <button class="icon" type="button" data-a="down" aria-label="Nach unten" ${i === photos.length - 1 ? "disabled" : ""}>${ICON.down}</button>
         <button class="icon del" type="button" data-a="del" aria-label="Entfernen">${ICON.del}</button>
@@ -963,16 +1063,16 @@ async function buildPdf(onProgress) {
 }
 
 function drawMarksPdf(page, p, op, Y, F, hex, LineCapStyle) {
-  const sc = op.w / p.w, o = { x: op.x, y: Y(op.y), scale: sc };
+  const sc = op.w / p.w, o = { x: op.x, y: Y(op.y), scale: sc }, vm = viewMarks(p), nums = vm.filter((q) => q.t === "num");
   for (const pass of ["halo", "color"]) {
-    for (const m of p.marks) {
+    for (const m of vm) {
       const g = markGeom(m, p), halo = pass === "halo", col = hex(halo ? haloOf(m.c) : m.c), opa = halo ? 0.85 : 1;
       if (g.num) {
         const d = circlePath(m.x, m.y, g.r);
         if (halo) page.drawSvgPath(d, { ...o, color: col, opacity: opa, borderColor: col, borderOpacity: opa, borderWidth: g.sw * 2.4 });
         else {
           page.drawSvgPath(d, { ...o, color: col });
-          const t = String(NUMS(p).indexOf(m) + 1), s = g.r * 1.3 * sc, w = F.B.widthOfTextAtSize(t, s);
+          const t = String(nums.indexOf(m) + 1), s = g.r * 1.3 * sc, w = F.B.widthOfTextAtSize(t, s);
           page.drawText(t, { x: op.x + m.x * sc - w / 2, y: Y(op.y + m.y * sc) - s * 0.36, size: s, font: F.B, color: hex(numInk(m.c)) });
         }
         continue;
@@ -1018,14 +1118,14 @@ function sha256js(msg) {
   const out = new Uint8Array(32); const ov = new DataView(out.buffer); H.forEach((x, i) => ov.setUint32(i * 4, x)); return out;
 }
 
-async function renderJpeg(p, maxW, maxH) {
+async function renderJpeg(p, maxW, maxH, full) {
   const blob = await decodable(p);
-  const bmp = await createImageBitmap(blob);
-  const s = Math.min(1, maxW / bmp.width, maxH / bmp.height);
-  const w = Math.max(1, Math.round(bmp.width * s)), h = Math.max(1, Math.round(bmp.height * s));
+  const bmp = await createImageBitmap(blob), v = viewBox(p, full);
+  const s = Math.min(1, maxW / v.w, maxH / v.h);
+  const w = Math.max(1, Math.round(v.w * s)), h = Math.max(1, Math.round(v.h * s));
   const c = document.createElement("canvas"); c.width = w; c.height = h;
   const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
-  g.imageSmoothingQuality = "high"; g.drawImage(bmp, 0, 0, w, h); bmp.close();
+  drawView(g, bmp, p, w, h, full); bmp.close();
   const out = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.86));
   return new Uint8Array(await out.arrayBuffer());
 }
@@ -1082,6 +1182,7 @@ $("#list").addEventListener("click", (e) => {
   if (b.dataset.a === "up" && i > 0) [photos[i - 1], photos[i]] = [photos[i], photos[i - 1]];
   if (b.dataset.a === "down" && i < photos.length - 1) [photos[i + 1], photos[i]] = [photos[i], photos[i + 1]];
   if (b.dataset.a === "mark") { openEditor(photos[i]); return; }
+  if (b.dataset.a === "rotl" || b.dataset.a === "rotr") { rotateView(photos[i], b.dataset.a === "rotr" ? 1 : -1); return; }
   if (b.dataset.a === "del") { const [p] = photos.splice(i, 1); if (p.thumb) URL.revokeObjectURL(p.thumb); }
   render();
 });
@@ -1130,7 +1231,7 @@ async function samples() {
     const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
     const file = new File([blob], d.name, { type: "image/jpeg", lastModified: Date.now() });
     photos.push({ id: ++uid, file, name: d.name, size: blob.size, dt: d.dt, dtSrc: "exif", gps: d.gps, place: "", placeSrc: "", note: d.note,
-      thumb: URL.createObjectURL(blob), w: W, h: H, err: "", busy: false, sample: true, decoded: blob, marks: d.marks || [] });
+      thumb: URL.createObjectURL(blob), w: W, h: H, bw: W, bh: H, rot: 0, crop: null, err: "", busy: false, sample: true, decoded: blob, marks: d.marks || [] });
   }
   render();
   for (const p of photos) if (p.sample) { p.sha = await sha256hex(new Uint8Array(await p.file.arrayBuffer())); queuePlace(p); }

@@ -19,9 +19,21 @@ Fotos (File)  ──►  EXIF lesen (exifr)  ──►  Foto-Objekt  ──►  
 | `dt`, `dtSrc` | Aufnahmezeit als `{y,m,d,H,M,S}`, Quelle `exif` oder `datei` (Änderungsdatum) |
 | `gps` | `{lat, lon}` oder `null` |
 | `place`, `placeSrc` | Ortsangabe; Quelle `osm`, `offline` oder `manual` (manuelle Eingabe gewinnt immer) |
-| `w`, `h`, `thumb`, `decoded` | Maße des gedrehten Bildes, Vorschau-URL, dekodierbarer Blob (HEIC → JPEG) |
-| `marks` | Markierungen in Bildpixeln: `circle {x,y,r}`, `arrow {x,y (Spitze), x2,y2}`, `num {x,y,r,note}`, jeweils mit Farbe `c` |
+| `bw`, `bh` | Maße des ausgerichteten Originals (EXIF-Orientierung bereits angewendet) |
+| `rot`, `crop` | Drehung (0–3 × 90° im Uhrzeigersinn) und Ausschnitt `{x,y,w,h}` in Pixeln des gedrehten Bildes oder `null` |
+| `w`, `h`, `thumb`, `decoded` | Maße der Ansicht (gedreht und zugeschnitten, in Originalpixeln), Vorschau-URL der Ansicht, dekodierbarer Blob (HEIC → JPEG) |
+| `marks` | Markierungen in Pixeln des Originals (`bw` × `bh`), unabhängig von Drehung und Ausschnitt: `circle {x,y,r}`, `arrow {x,y (Spitze), x2,y2}`, `num {x,y,r,note}`, jeweils mit Farbe `c` |
 | `note`, `sha` | Bemerkung, SHA-256 der Originaldatei |
+
+### Drehen und Ausschnitt
+
+Die Originaldatei und die Markierungen werden nie verändert. `rot` und `crop` bestimmen nur die **Ansicht**:
+
+- `drawView()` zeichnet die Ansicht (Drehmatrix, dann Ausschnitt) auf ein Canvas. Vorschau (`paintThumb()`), PDF-Bild (`renderJpeg()`) und Editor nutzen dieselbe Funktion.
+- `viewMarks()` rechnet Markierungen vom Original in die Ansicht um (`toRot()`, Versatz um den Ausschnitt) und lässt solche aus, deren Mittelpunkt außerhalb liegt. `unviewMark()` rechnet neu gesetzte Markierungen zurück.
+- `NUMS(p)` liefert nur sichtbare Nummern; Beschriftung und Notizliste im PDF stimmen damit mit dem Bild überein.
+- Beim Drehen wird ein vorhandener Ausschnitt mitgedreht (`rotateView()`). `p.w` × `p.h` ist die Ansicht und bestimmt Seitenverhältnis und Platz im Layout.
+- Die eingebetteten Originale (auch verkleinerte) werden nicht gedreht oder zugeschnitten.
 
 ### Seitenmodell (`buildModel()`)
 
@@ -75,3 +87,4 @@ Seitenarten in Reihenfolge: Titelseite(n) (`coverPages()`), Fotoseiten, Prüfsum
 - die SHA-256-Werte auf der Prüfsummenseite
 - Titelseite mit Markdown, Fotonummern, Markierungsnotizen
 - dass verkleinerte Originale das Aufnahmedatum behalten
+- Drehen und Ausschnitt: Markierungen wandern mit, liegen sie außerhalb, verschwindet die Nummer samt Notiz, die Originale bleiben bitgenau

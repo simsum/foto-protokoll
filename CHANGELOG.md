@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen. Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.5.0] – 2026-10-09
+
+### Neu
+- **Fotos drehen:** Links/rechts drehen in 90°-Schritten, direkt an der Fotokarte und im Markieren-Fenster. Gilt für Vorschau und PDF.
+- **Ausschnitt:** Im Markieren-Fenster per „Ausschnitt“ ein Rechteck aufziehen. Das Foto erscheint in Vorschau und PDF nur noch mit diesem Bereich, „Ausschnitt aufheben“ stellt es wieder her.
+- Markierungen bleiben in den Pixeln des Originals gespeichert und folgen Drehung und Ausschnitt. Markierungen und Nummern außerhalb des Ausschnitts werden nicht angezeigt und stehen nicht in der Notizliste.
+- Die eingebetteten Originale bleiben unverändert (nicht gedreht, nicht zugeschnitten).
+
 ## [0.4.0] – 2026-10-08
 
 ### Neu

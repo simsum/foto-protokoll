@@ -179,6 +179,11 @@ svg.marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-eve
 .ed .seg { min-width: 150px; }
 .ed .seg button { padding: 8px 12px; font: 500 13px/1 var(--f-body); display: inline-flex; gap: 6px; align-items: center; justify-content: center; }
 .ed .seg svg { width: 15px; height: 15px; }
+.ed #edView { min-width: 0; }
+.ed #edView button { padding: 8px 10px; }
+.ed.cropping #edTool, .ed.cropping #edColor, .modal.cropping #edTool, .modal.cropping #edColor { opacity: .35; pointer-events: none; }
+.modal.cropping .ed-img svg { cursor: cell; }
+.btn:disabled { opacity: .45; cursor: default; }
 .sw { display: flex; gap: 6px; }
 .sw button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); cursor: pointer; padding: 0; }
 .sw button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink); }

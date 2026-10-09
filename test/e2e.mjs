@@ -133,6 +133,55 @@ await test("PDF: verkleinerte Originale sind kleiner und behalten Datum/GPS", as
   assert.ok(pdf.indexOf(Buffer.from("2026:09:20 10:01:02")) >= 0, "Aufnahmedatum fehlt in verkleinerter Datei");
 });
 
+await test("Drehen und Ausschnitt: Markierungen folgen, Originale bleiben bitgenau", async (page) => {
+  const card = ".card:nth-child(1)";
+  const ratio = (sel) => page.$eval(sel, (el) => { const [a, b] = el.style.aspectRatio.split("/").map(Number); return a / b; });
+  const markPos = async () => { await page.waitForSelector(`${card} svg.marks`); return markPos0(); };
+  const markPos0 = () => page.$eval(`${card} svg.marks`, (svg) => {
+    const [, , w, h] = svg.getAttribute("viewBox").split(" ").map(Number), c = svg.querySelector("circle");
+    return { x: +c.getAttribute("cx") / w, y: +c.getAttribute("cy") / h };
+  });
+  const near = (a, b, msg) => assert.ok(Math.abs(a - b) < 0.02, `${msg}: ${a} ≠ ${b}`);
+  const pdf = await session(page, async (p) => {
+    await addFixtures(p);
+    await p.uncheck("#cmp"); // Einstellung stammt aus dem vorigen Test (gemeinsamer localStorage)
+    const r0 = await ratio(`${card} .tbtn`);
+    // Nummer bei 40 % / 40 % setzen
+    await p.click(`${card} .tbtn`);
+    await p.click("#edTool button[data-v=num]");
+    let box = await p.locator("#edSvg").boundingBox();
+    await p.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.4);
+    await p.fill("#mn-0", "Fühler lose");
+    await p.click("#edDone");
+    near((await markPos()).x, 0.4, "Marke x vor Drehung"); near((await markPos()).y, 0.4, "Marke y vor Drehung");
+    // rechts drehen: Seitenverhältnis kehrt sich um, Marke wandert nach (60 %, 40 %)
+    await p.click(`${card} button[data-a=rotr]`);
+    await p.waitForFunction(([sel, r]) => { const [a, b] = document.querySelector(sel).style.aspectRatio.split("/").map(Number); return Math.abs(a / b - 1 / r) < 0.01; }, [`${card} .tbtn`, r0]);
+    await p.waitForTimeout(300);
+    near((await markPos()).x, 0.6, "Marke x nach Drehung"); near((await markPos()).y, 0.4, "Marke y nach Drehung");
+    // Ausschnitt links: Marke liegt außerhalb und verschwindet
+    const crop = async (x0, x1) => {
+      await p.click(`${card} .tbtn`);
+      await p.click("#edCrop");
+      await p.waitForFunction(() => document.querySelector("#edCrop").getAttribute("aria-pressed") === "true");
+      await p.waitForTimeout(200);
+      box = await p.locator("#edSvg").boundingBox();
+      await p.mouse.move(box.x + box.width * x0, box.y + box.height * 0.1);
+      await p.mouse.down(); await p.mouse.move(box.x + box.width * x1, box.y + box.height * 0.9, { steps: 5 }); await p.mouse.up();
+      await p.waitForFunction(() => !document.querySelector("#edCropReset").disabled && document.querySelector("#edCrop").getAttribute("aria-pressed") === "false");
+      await p.click("#edDone");
+    };
+    await crop(0.05, 0.45);
+    assert.equal((await p.textContent(`${card} .tbtn .mk`)).trim(), "Markieren", "Marke sollte außerhalb des Ausschnitts liegen");
+    // Ausschnitt rechts, Marke ist wieder sichtbar
+    await crop(0.3, 0.95);
+    assert.match(await p.textContent(`${card} .tbtn .mk`), /1 Markierung/);
+    assert.ok((await ratio(`${card} .tbtn`)) > 0, "Seitenverhältnis");
+  });
+  for (const f of fixtures) assert.ok(pdf.indexOf(readFileSync(join(fixDir, f))) >= 0, `Original ${f} nicht bitgenau eingebettet`);
+  assert.ok(pdfText(pdf).includes("Fühler lose"), "Notiz zur sichtbaren Marke fehlt im PDF");
+});
+
 await browser.close();
 if (failures) { console.error(`${failures} Test(s) fehlgeschlagen`); process.exit(1); }
 console.log("Alle Tests bestanden.");

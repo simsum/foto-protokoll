@@ -32,6 +32,10 @@ Ohne Internet bleibt alles nutzbar. Den Ort bestimmt das Tool dann offline aus d
 - GPS-Koordinaten, im PDF als Link zur Karte
 - Bemerkung, Notizen zu nummerierten Markierungen, Dateiname
 
+**Drehen und Ausschnitt**
+- Foto links oder rechts drehen (an der Fotokarte oder im Markieren-Fenster)
+- Ausschnitt per Rechteck wählen, jederzeit wieder aufhebbar. Wirkt auf Vorschau und PDF, die eingebettete Originaldatei bleibt unverändert.
+
 **Markieren im Foto**
 - Kreis, Pfeil und Nummer ①②③ in Rot, Gelb oder Blau, jeweils mit Kontrastrand
 - Zu jeder Nummer eine Notiz, die als Liste unter dem Foto steht

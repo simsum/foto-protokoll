@@ -4,13 +4,15 @@ Fotos per Drag & Drop in ein PDF: mit Datum, Uhrzeit, GPS-Position und Ort unter
 
 Das Tool ist eine einzige HTML-Datei. Es läuft komplett im Browser, Fotos werden nirgendwo hochgeladen.
 
+**Direkt ausprobieren: https://simsum.github.io/foto-protokoll/**
+
 ![Oberfläche](docs/oberflaeche.png)
 
 ## Benutzen
 
 | Weg | Ort aus GPS | Hinweis |
 |---|---|---|
-| **GitHub Pages** (wenn aktiviert) | Straße, Hausnummer, PLZ und Ort über OpenStreetMap | Einfach die Seite öffnen |
+| **Webseite**: [simsum.github.io/foto-protokoll](https://simsum.github.io/foto-protokoll/) (GitHub Pages) | Straße, Hausnummer, PLZ und Ort über OpenStreetMap | Einfach die Seite öffnen |
 | **Lokal**: [`dist/Foto-Protokoll.html`](dist/Foto-Protokoll.html) herunterladen und doppelklicken | Straße, Hausnummer, PLZ und Ort über OpenStreetMap | Funktioniert ohne Server |
 | **Als Claude-Artifact** | Nur nächster Ort aus der eingebauten Liste | Die Artifact-Umgebung blockiert fremde Server |
 

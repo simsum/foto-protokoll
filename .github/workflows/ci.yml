@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm install
+      - run: pip install pillow piexif
+      - run: npm run fixtures
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Prüfen, ob dist/ aktuell ist
+        run: git diff --exit-code -- dist/ || (echo "dist/ ist veraltet – bitte 'npm run build' ausführen und committen" && exit 1)
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-output
+          path: test-output/

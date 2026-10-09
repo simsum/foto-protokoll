@@ -1,0 +1,139 @@
+<title>Foto-Protokoll</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/*__STYLES__*/
+</style>
+
+<header class="bar">
+  <div class="brand"><h1>Foto-Protokoll</h1><span>Fotos mit Aufnahmedaten als PDF</span></div>
+  <div class="spacer"></div>
+  <div class="stats" id="stats"></div>
+  <button class="btn primary" id="make" type="button">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 2v8m0 0L4.8 6.8M8 10l3.2-3.2M3 13h10"/></svg>
+    PDF erstellen
+  </button>
+  <div class="progress" id="progress" hidden><i></i></div>
+</header>
+
+<main class="layout">
+  <aside class="panel">
+    <section class="group">
+      <h2>Seite</h2>
+      <div class="row2">
+        <div class="field"><label for="fmt">Format</label>
+          <select id="fmt"><option value="A4">A4</option><option value="A3">A3</option><option value="A5">A5</option><option value="Letter">US Letter</option></select></div>
+        <div class="field"><label for="orient">Ausrichtung</label>
+          <select id="orient"><option value="p">Hochformat</option><option value="l">Querformat</option></select></div>
+      </div>
+      <div class="field"><span class="lbl" id="perLbl">Fotos pro Seite</span>
+        <div class="seg" id="per" role="group" aria-labelledby="perLbl">
+          <button type="button" data-v="1">1</button><button type="button" data-v="2">2</button><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button><button type="button" data-v="6">6</button>
+        </div></div>
+    </section>
+
+    <section class="group">
+      <h2>Überschrift</h2>
+      <div class="field"><label for="title">Titel auf jeder Seite</label><input type="text" id="title" placeholder="z. B. Fotodokumentation"></div>
+      <div class="field"><label for="subtitle">Zweite Zeile (optional)</label><input type="text" id="subtitle" placeholder="z. B. Projekt, Bauteil, Datum der Begehung"></div>
+      <label class="check"><input type="checkbox" id="logoOn"> Firmenlogo rechts oben</label>
+      <div class="logo-pick" id="logoPick"><img id="logoImg" alt="Logo" hidden><label class="btn" for="logoFile" id="logoBtn">Logo wählen</label><input type="file" id="logoFile" accept="image/*" hidden><button class="btn ghost" type="button" id="logoDel" hidden>Entfernen</button></div>
+      <label class="check"><input type="checkbox" id="pageNo"> Seitenzahl und Erstelldatum in der Fußzeile</label>
+    </section>
+
+    <section class="group">
+      <h2>Titelseite</h2>
+      <label class="check"><input type="checkbox" id="coverOn"><span>Titelseite voranstellen<small>Mit Titel, Logo und freiem Text. Das Textfeld erscheint über der Vorschau.</small></span></label>
+      <label class="check" id="coverFactsWrap"><input type="checkbox" id="coverFacts"> Eckdaten: Anzahl Fotos, Aufnahmezeitraum, Erstelldatum</label>
+    </section>
+
+    <section class="group">
+      <h2>Beschriftung unter den Fotos</h2>
+      <label class="check"><input type="checkbox" id="capNum"> Fotonummer (Foto 1, Foto 2 …)</label>
+      <label class="check"><input type="checkbox" id="capDate"> Datum und Uhrzeit</label>
+      <label class="check"><input type="checkbox" id="capPlace"> Ort</label>
+      <label class="check"><input type="checkbox" id="capGps"><span>GPS-Koordinaten<small>Im PDF als Link zur Karte</small></span></label>
+      <label class="check"><input type="checkbox" id="capNote"> Bemerkung</label>
+      <label class="check"><input type="checkbox" id="capMarks"><span>Notizen zu nummerierten Markierungen<small>Liste ①②③ mit deinen Notizen unter dem Foto</small></span></label>
+      <label class="check"><input type="checkbox" id="capFile"> Dateiname</label>
+    </section>
+
+    <section class="group">
+      <h2>Originale &amp; Qualität</h2>
+      <label class="check"><input type="checkbox" id="embed"><span>Originaldateien einbetten<small>Büroklammer am Foto öffnet das unveränderte Original inkl. EXIF. Sichtbar in Acrobat, Foxit, PDF-XChange und Firefox, nicht im Chrome/Edge-Viewer.</small></span></label>
+      <label class="check" id="cmpWrap"><input type="checkbox" id="cmp"><span>Originale vorher verkleinern<small>Kleineres PDF. Datum und GPS bleiben in der Datei erhalten, Markierungen kommen nie ins Original.</small></span></label>
+      <div class="field" id="cmpEdgeWrap"><label for="cmpEdge">Verkleinern auf</label>
+        <select id="cmpEdge"><option value="1600">1600 px – stark, ca. 0,3 MB</option><option value="2400">2400 px – mittel, ca. 0,7 MB</option><option value="3200">3200 px – leicht, ca. 1,2 MB</option></select></div>
+      <label class="check"><input type="checkbox" id="hashes"><span>Prüfsummen-Seite (SHA-256) anhängen<small>Belegt später, dass ein Foto unverändert ist.</small></span></label>
+      <div class="field"><label for="dpi">Bildauflösung auf der Seite</label>
+        <select id="dpi"><option value="110">110 dpi – klein, für Bildschirm</option><option value="150">150 dpi – Standard</option><option value="220">220 dpi – guter Druck</option><option value="300">300 dpi – maximal</option></select></div>
+    </section>
+
+    <section class="group">
+      <h2>Ort aus GPS</h2>
+      <div class="field"><label for="placeMode">Ermittlung</label>
+        <select id="placeMode"><option value="auto">OpenStreetMap, sonst offline</option><option value="offline">Nur offline (nächster Ort)</option><option value="off">Aus</option></select></div>
+      <p class="hint">OpenStreetMap liefert Straße und Ort und bekommt dafür die Koordinaten. Offline wird der nächstgelegene Ort aus einer eingebauten Liste genommen. Jeder Ort ist pro Foto änderbar.</p>
+      <p class="notice" id="osmNotice" hidden>OpenStreetMap ist hier nicht erreichbar. Orte werden offline ermittelt.</p>
+    </section>
+    <p class="hint credits">Foto-Protokoll __VERSION__ · Ortsliste: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) · Adressen: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</p>
+  </aside>
+
+  <section class="work">
+    <div class="drop" id="drop">
+      <p><b>Fotos hierher ziehen</b><span>JPG, PNG, HEIC vom iPhone. Alles bleibt im Browser, nichts wird hochgeladen.</span></p>
+      <label class="btn" for="file">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
+        Fotos auswählen</label>
+      <input type="file" id="file" multiple accept="image/*,.heic,.heif">
+    </div>
+    <div class="sample" id="sampleBar" hidden><b>Beispielfotos</b><span>Die Vorschau zeigt erfundene Beispiele. Mit deinen ersten Fotos verschwinden sie.</span></div>
+
+    <section class="cover" id="coverSec" hidden>
+      <div class="sec-head"><h2>Text der Titelseite</h2><span class="muted">Markdown-Formatierung möglich</span><span class="spacer"></span><button class="btn ghost" type="button" id="coverTpl">Vorlage einfügen</button></div>
+      <textarea id="coverText" rows="12" spellcheck="true" aria-label="Text der Titelseite" placeholder="## Begehung Technikzentrale&#10;&#10;**Teilnehmer:** …&#10;&#10;- [x] Verteiler geprüft&#10;- [ ] Restarbeiten Dämmung"></textarea>
+      <p class="hint mdhelp"><code># Überschrift</code><code>## kleiner</code><code>**fett**</code><code>*kursiv*</code><code>- Liste</code><code>1. Liste</code><code>- [ ] offen</code><code>- [x] erledigt</code><code>| Tabelle |</code><code>---</code><span>Jeder Zeilenumbruch bleibt erhalten, eine Leerzeile macht einen Absatz. Langer Text läuft auf Folgeseiten weiter.</span></p>
+    </section>
+
+    <div class="sec-head"><h2>Vorschau</h2><span class="muted" id="pageInfo"></span><span class="spacer"></span><span class="muted">Seite antippen zum Vergrößern</span></div>
+    <div class="pages" id="pages"></div>
+
+    <div class="sec-head"><h2 id="listHead">Fotos</h2><span class="spacer"></span>
+      <button class="btn ghost" type="button" id="sortBtn">Nach Aufnahmezeit sortieren</button>
+      <button class="btn ghost" type="button" id="clearBtn">Alle entfernen</button></div>
+    <div class="list" id="list"></div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+<div class="modal" id="editor" hidden role="dialog" aria-modal="true" aria-labelledby="edName">
+  <div class="ed">
+    <div class="ed-bar">
+      <span class="name" id="edName"></span>
+      <span class="spacer"></span>
+      <div class="seg" id="edTool" role="group" aria-label="Werkzeug">
+        <button type="button" data-v="circle"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="5.5"/></svg>Kreis</button>
+        <button type="button" data-v="arrow"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l9 9M12 6.5V12H6.5"/></svg>Pfeil</button>
+        <button type="button" data-v="num"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="8" y="11.2" text-anchor="middle" font-size="9" font-weight="700" font-family="Arial,sans-serif" fill="currentColor">1</text></svg>Nummer</button>
+      </div>
+      <div class="sw" id="edColor" role="group" aria-label="Farbe">
+        <button type="button" data-v="#E3242B" style="background:#E3242B" aria-label="Rot"></button>
+        <button type="button" data-v="#FFC400" style="background:#FFC400" aria-label="Gelb"></button>
+        <button type="button" data-v="#1F6FEB" style="background:#1F6FEB" aria-label="Blau"></button>
+      </div>
+      <button class="btn" type="button" id="edUndo">Rückgängig</button>
+      <button class="btn" type="button" id="edClear">Alle entfernen</button>
+      <button class="btn primary" type="button" id="edDone">Fertig</button>
+    </div>
+    <p class="hint">Auf die Stelle tippen, die markiert werden soll. Ziehen bestimmt die Größe von Kreis und Nummer bzw. Richtung und Länge des Pfeils. Zu jeder Nummer kannst du unten eine Notiz schreiben.</p>
+    <div class="ed-stage"><div class="ed-img" id="edImg"><img alt="" id="edPic"><svg id="edSvg"></svg></div></div>
+    <div class="ed-notes" id="edNotes" hidden></div>
+  </div>
+</div>
+
+<script type="text/plain" id="orte-data">__ORTE_B64__</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js"></script>
+<script>
+/*__APP__*/
+</script>

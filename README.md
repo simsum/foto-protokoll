@@ -103,7 +103,7 @@ dist/               Gebaute Dateien (werden mit eingecheckt)
 
 ## Lizenzen
 
-Der Code steht unter der [MIT-Lizenz](LICENSE).
+Der Code steht unter der [MIT-Lizenz](LICENSE). Alle Drittanbieter-Lizenzen und Quellenangaben stehen in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 Verwendete Fremdbestandteile:
 

@@ -300,7 +300,7 @@ svg.marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-eve
       <p class="hint">OpenStreetMap liefert Straße und Ort und bekommt dafür die Koordinaten. Offline wird der nächstgelegene Ort aus einer eingebauten Liste genommen. Jeder Ort ist pro Foto änderbar.</p>
       <p class="notice" id="osmNotice" hidden>OpenStreetMap ist hier nicht erreichbar. Orte werden offline ermittelt.</p>
     </section>
-    <p class="hint credits">Foto-Protokoll v0.5.1 · Ortsliste: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) · Adressen: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</p>
+    <p class="hint credits">Foto-Protokoll v0.5.2 · Ortsliste: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) · Adressen: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</p>
   </aside>
 
   <section class="work">
@@ -1102,6 +1102,7 @@ function coverPages(W, H, hd) {
 
 /* ---------- Seitenmodell (pt, Ursprung oben links) ---------- */
 const M = 40, GAP = 16, FOOT = 20;
+const PROJECT_URL = "https://github.com/simsum/foto-protokoll", PROJECT_LABEL = "Foto-Protokoll · github.com/simsum/foto-protokoll";
 const C_INK = "#1E2324", C_MUT = "#6E7778", C_ACC = "#0B6B6B", C_RULE = "#C4CBCA";
 const NUMS = (p) => viewMarks(p).filter((m) => m.t === "num").map((m) => m.src); // nur Nummern im sichtbaren Ausschnitt
 const photoNo = (p) => photos.indexOf(p) + 1;
@@ -1235,6 +1236,8 @@ function buildModel(embMap) {
     pages.forEach((pm, i) => {
       const t = `Seite ${i + 1} von ${pages.length}`;
       pm.ops.push({ o: "t", x: M, y: H - M - 7, s: 7, f: "R", c: C_MUT, t: "Erstellt am " + created });
+      pm.ops.push({ o: "t", x: M, y: H - M + 3, s: 7, f: "R", c: C_ACC, t: PROJECT_LABEL });
+      pm.ops.push({ o: "link", x: M, y: H - M + 2, w: tw(PROJECT_LABEL, "R", 7), h: 9.5, url: PROJECT_URL });
       pm.ops.push({ o: "t", x: W - M - tw(t, "R", 7), y: H - M - 7, s: 7, f: "R", c: C_MUT, t });
     });
   }

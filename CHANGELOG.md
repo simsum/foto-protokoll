@@ -2,6 +2,12 @@
 
 Alle nennenswerten Änderungen. Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.5.2] – 2026-10-12
+
+### Neu
+- Fußzeile im PDF: unter „Erstellt am …“ steht jetzt ein Link zum Projekt (github.com/simsum/foto-protokoll).
+- `THIRD-PARTY-NOTICES.md` mit Lizenzen und Quellenangaben der Drittanbieter (u. a. GeoNames, CC BY 4.0).
+
 ## [0.5.1] – 2026-10-09
 
 ### Geändert

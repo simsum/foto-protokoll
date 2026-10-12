@@ -735,6 +735,7 @@ function coverPages(W, H, hd) {
 
 /* ---------- Seitenmodell (pt, Ursprung oben links) ---------- */
 const M = 40, GAP = 16, FOOT = 20;
+const PROJECT_URL = "https://github.com/simsum/foto-protokoll", PROJECT_LABEL = "Foto-Protokoll · github.com/simsum/foto-protokoll";
 const C_INK = "#1E2324", C_MUT = "#6E7778", C_ACC = "#0B6B6B", C_RULE = "#C4CBCA";
 const NUMS = (p) => viewMarks(p).filter((m) => m.t === "num").map((m) => m.src); // nur Nummern im sichtbaren Ausschnitt
 const photoNo = (p) => photos.indexOf(p) + 1;
@@ -868,6 +869,8 @@ function buildModel(embMap) {
     pages.forEach((pm, i) => {
       const t = `Seite ${i + 1} von ${pages.length}`;
       pm.ops.push({ o: "t", x: M, y: H - M - 7, s: 7, f: "R", c: C_MUT, t: "Erstellt am " + created });
+      pm.ops.push({ o: "t", x: M, y: H - M + 3, s: 7, f: "R", c: C_ACC, t: PROJECT_LABEL });
+      pm.ops.push({ o: "link", x: M, y: H - M + 2, w: tw(PROJECT_LABEL, "R", 7), h: 9.5, url: PROJECT_URL });
       pm.ops.push({ o: "t", x: W - M - tw(t, "R", 7), y: H - M - 7, s: 7, f: "R", c: C_MUT, t });
     });
   }

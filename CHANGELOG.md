@@ -2,6 +2,17 @@
 
 Alle nennenswerten Änderungen. Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.6.0] – 2026-10-18
+
+### Neu
+- **PDF später weiterbearbeiten:** Das PDF enthält den Anhang `foto-protokoll-projekt.json` mit Einstellungen, Titelseitentext, Logo, Reihenfolge, Orten, Bemerkungen, Markierungen samt Notizen, Drehung und Ausschnitt. Ein solches PDF auf die Seite ziehen stellt alles wieder her, auch die Fotos aus den eingebetteten Originalen (bitgenau, die Prüfsummen bleiben gleich).
+- Ohne eingebettete Originale kommen Einstellungen und Notizen zurück, die Fotos werden danach über ihre SHA-256 zugeordnet. Bei verkleinert eingebetteten Fotos gibt es nur die verkleinerte Fassung.
+- Neue Einstellung „Bearbeitungsdaten im PDF speichern“ (standardmäßig an, abwählbar).
+- Daten aus einem PDF gelten als unsicher: Alle Werte werden vor der Verwendung geprüft (Zahlen, Farben, Texte, Logo, Einstellungen). Ein Test mit einem manipulierten PDF stellt sicher, dass kein Code ausgeführt wird.
+
+### Geändert
+- Zum Öffnen eines Projekt-PDFs müssen vorher alle Fotos entfernt sein (Hinweis erscheint). Beispielfotos werden einfach ersetzt.
+
 ## [0.5.2] – 2026-10-12
 
 ### Neu

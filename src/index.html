@@ -65,6 +65,7 @@
       <label class="check" id="cmpWrap"><input type="checkbox" id="cmp"><span>Originale vorher verkleinern<small>Kleineres PDF. Datum und GPS bleiben in der Datei erhalten, Markierungen kommen nie ins Original.</small></span></label>
       <div class="field" id="cmpEdgeWrap"><label for="cmpEdge">Verkleinern auf</label>
         <select id="cmpEdge"><option value="1600">1600 px – stark, ca. 0,3 MB</option><option value="2400">2400 px – mittel, ca. 0,7 MB</option><option value="3200">3200 px – leicht, ca. 1,2 MB</option></select></div>
+      <label class="check"><input type="checkbox" id="projData"><span>Bearbeitungsdaten im PDF speichern<small>Einstellungen, Notizen, Markierungen, Drehung und Ausschnitt stehen als kleiner Anhang im PDF. Das PDF lässt sich dann hier wieder öffnen und weiterbearbeiten. Die Daten stehen im Klartext im PDF.</small></span></label>
       <label class="check"><input type="checkbox" id="hashes"><span>Prüfsummen-Seite (SHA-256) anhängen<small>Belegt später, dass ein Foto unverändert ist.</small></span></label>
       <div class="field"><label for="dpi">Bildauflösung auf der Seite</label>
         <select id="dpi"><option value="110">110 dpi – klein, für Bildschirm</option><option value="150">150 dpi – Standard</option><option value="220">220 dpi – guter Druck</option><option value="300">300 dpi – maximal</option></select></div>
@@ -82,11 +83,11 @@
 
   <section class="work">
     <div class="drop" id="drop">
-      <p><b>Fotos hierher ziehen</b><span>JPG, PNG, HEIC vom iPhone. Alles bleibt im Browser, nichts wird hochgeladen.</span></p>
+      <p><b>Fotos hierher ziehen</b><span>JPG, PNG, HEIC vom iPhone. Oder ein früher erstelltes Foto-Protokoll-PDF, um es weiterzubearbeiten. Alles bleibt im Browser, nichts wird hochgeladen.</span></p>
       <label class="btn" for="file">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
         Fotos auswählen</label>
-      <input type="file" id="file" multiple accept="image/*,.heic,.heif">
+      <input type="file" id="file" multiple accept="image/*,.heic,.heif,application/pdf,.pdf">
     </div>
     <div class="sample" id="sampleBar" hidden><b>Beispielfotos</b><span>Die Vorschau zeigt erfundene Beispiele. Mit deinen ersten Fotos verschwinden sie.</span></div>
 

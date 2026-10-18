@@ -62,6 +62,13 @@ Seitenarten in Reihenfolge: Titelseite(n) (`coverPages()`), Fotoseiten, Prüfsum
 - **Verkleinerte Originale:** Neu kodiertes JPEG. Bei JPEG-Quellen wird das komplette EXIF-Segment (APP1) übernommen und nur die Orientierung auf 1 gesetzt. Bei HEIC und PNG schreibt `buildExif()` ein minimales EXIF mit Aufnahmezeit und GPS.
 - **Markierungen** sind Vektorpfade (`drawSvgPath`) über dem Bild, nicht ins Bild gerechnet.
 
+### Projektdaten im PDF (erneut bearbeiten)
+
+- `buildPdf()` hängt mit `cfg.projData` (Standard an) die Datei `foto-protokoll-projekt.json` an: `{app, format: 1, cfg, logo, photos[]}`. Pro Foto: Name, Typ, Datum, Größe, SHA-256 des Originals, `att` (4-stellige Nummer des Fotos in den Anhängen, Schlüssel `0001 name`), `shrunk`, Aufnahmezeit, GPS, Ort samt Quelle, Bemerkung, `marks`, `rot`, `crop`. Die Fotos selbst sind die Anhänge der Büroklammern.
+- `addFiles()` nimmt auch PDFs an: `openProjectPdf()` liest die Anhänge mit `readPdfAttachments()` (pdf-lib, Namensbaum `/Names /EmbeddedFiles`), prüft die Daten mit `cleanProject()`, übernimmt Einstellungen mit `applyProject()` und fügt die Originale über `addFiles(files, direct)` ein. `applyMeta()` setzt Notizen, Orte, Markierungen, Drehung und Ausschnitt.
+- Fehlen Anhänge, merkt sich `pendingMeta` die restlichen Fotos; später hinzugefügte Fotos werden über die SHA-256 zugeordnet.
+- Sicherheit: Alles aus dem PDF ist unsicher. `cleanProject()` lässt nur bekannte Felder, Zahlen im gültigen Bereich, Farben als `#RRGGBB`, ein PNG-Logo als Data-URL und gekürzte Texte durch; Einstellungen müssen zum Typ in `DEFAULTS` passen, Auswahlwerte zu einer vorhandenen Option. Texte werden wie bisher beim Ausgeben maskiert (`esc()`).
+
 ### Ortsermittlung
 
 1. **OpenStreetMap Nominatim** (`reverse`, `zoom=18`): höchstens eine Anfrage pro Sekunde, Ergebnisse werden pro ~10 m zwischengespeichert. Schlägt die erste Anfrage fehl (offline, oder Sperre wie im Claude-Artifact), schaltet das Tool für die Sitzung auf offline um.
@@ -88,4 +95,5 @@ Seitenarten in Reihenfolge: Titelseite(n) (`coverPages()`), Fotoseiten, Prüfsum
 - die SHA-256-Werte auf der Prüfsummenseite
 - Titelseite mit Markdown, Fotonummern, Markierungsnotizen
 - dass verkleinerte Originale das Aufnahmedatum behalten
+- PDF erneut öffnen: Wiederherstellung aus eingebetteten Originalen (bitgenau), Zuordnung über die Prüfsumme ohne Originale, PDF ohne Projektdaten, manipulierte Projektdaten (kein Schadcode)
 - Drehen und Ausschnitt: Markierungen wandern mit, liegen sie außerhalb, verschwindet die Nummer samt Notiz, die Originale bleiben bitgenau

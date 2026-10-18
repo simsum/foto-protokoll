@@ -16,6 +16,7 @@ Diese Datei liest Claude (Claude Code / Cowork) automatisch, wenn im Projektordn
 - Originaldateien werden nie verändert. Markierungen nur als Vektor im PDF, nie ins Bild oder ins eingebettete Original.
 - Externe Bibliotheken nur als einzelnes UMD-Skript von cdnjs, jsDelivr oder unpkg (Bedingung der Claude-Artifact-Variante). Alles andere inline.
 - Drehen und Ausschnitt (`rot`, `crop`) ändern nur die Ansicht. Markierungen bleiben in Pixeln des Originals (`bw` × `bh`) und werden mit `viewMarks()` umgerechnet; Bild immer über `drawView()` zeichnen. Details in `docs/ARCHITEKTUR.md`.
+- Projektdaten im PDF (`foto-protokoll-projekt.json`, `projectJson()` ↔ `cleanProject()`): Alles, was aus einem PDF gelesen wird, ist unsicher und läuft vor jeder Verwendung durch `cleanProject()`. Neue Foto- oder Einstellungsfelder dort mit aufnehmen und prüfen, bei unverträglichen Änderungen `format` erhöhen und alte Formate weiter lesen. `npm test` enthält einen Test mit manipuliertem PDF.
 - Neue Funktionen sind optional und abschaltbar; Einstellungen wandern in `DEFAULTS` und werden über `bindSettings()` gemerkt.
 
 ## Erkenntnisse und Stolpersteine

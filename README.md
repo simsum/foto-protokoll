@@ -50,6 +50,12 @@ Ohne Internet bleibt alles nutzbar. Den Ort bestimmt das Tool dann offline aus d
 
 > Die Anhänge zeigen Adobe Acrobat, Foxit, PDF-XChange und Firefox an. Der eingebaute PDF-Viewer von Chrome und Edge zeigt sie **nicht** an.
 
+**PDF später weiterbearbeiten**
+- Im PDF steckt ein kleiner Anhang `foto-protokoll-projekt.json` mit allen Einstellungen, Notizen, Orten, Markierungen, Drehungen und Ausschnitten (Einstellung „Bearbeitungsdaten im PDF speichern“, standardmäßig an).
+- Das PDF einfach wie Fotos auf die Seite ziehen: Einstellungen und Fotos kommen zurück, du kannst weiterarbeiten und ein neues PDF erzeugen.
+- Voraussetzung sind die eingebetteten Originale. Fehlen sie (Einbetten war aus), kommen die Einstellungen und Notizen zurück und du ziehst die Originalfotos danach hinein, sie werden über die Prüfsumme zugeordnet. Bei verkleinert eingebetteten Fotos steht nur die verkleinerte Fassung zur Verfügung.
+- Wird das PDF in einem anderen Programm gespeichert oder gedruckt, gehen die Anhänge oft verloren. Die Daten stehen im Klartext im PDF, wer das nicht möchte, schaltet die Option ab.
+
 **Titelseite** (optional)
 - Großer Titel, Logo und Eckdaten: Anzahl Fotos, Aufnahmezeitraum, Erstelldatum
 - Freier Text mit Markdown. Langer Text läuft auf Folgeseiten weiter.
@@ -74,7 +80,7 @@ Abweichend vom Standard-Markdown bleibt jeder Zeilenumbruch erhalten. Eine Leerz
 
 - Fotos, Markierungen und Notizen bleiben im Browser. Es gibt keinen Server und kein Tracking.
 - Nur zur Ortsermittlung gehen die **GPS-Koordinaten** (nicht die Fotos) an OpenStreetMap Nominatim, höchstens eine Anfrage pro Sekunde. Mit der Einstellung „Nur offline“ oder „Aus“ geht nichts ins Netz.
-- Einstellungen, Titelseitentext und Logo werden im Browser gespeichert (`localStorage`). Fotos und Markierungen nicht: Nach dem Neuladen sind sie weg.
+- Einstellungen, Titelseitentext und Logo werden im Browser gespeichert (`localStorage`). Fotos und Markierungen nicht: Nach dem Neuladen sind sie weg. Zum Sichern das PDF erstellen und später wieder öffnen (siehe „PDF später weiterbearbeiten“).
 
 ## Entwicklung
 

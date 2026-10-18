@@ -288,6 +288,7 @@ svg.marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-eve
       <label class="check" id="cmpWrap"><input type="checkbox" id="cmp"><span>Originale vorher verkleinern<small>Kleineres PDF. Datum und GPS bleiben in der Datei erhalten, Markierungen kommen nie ins Original.</small></span></label>
       <div class="field" id="cmpEdgeWrap"><label for="cmpEdge">Verkleinern auf</label>
         <select id="cmpEdge"><option value="1600">1600 px – stark, ca. 0,3 MB</option><option value="2400">2400 px – mittel, ca. 0,7 MB</option><option value="3200">3200 px – leicht, ca. 1,2 MB</option></select></div>
+      <label class="check"><input type="checkbox" id="projData"><span>Bearbeitungsdaten im PDF speichern<small>Einstellungen, Notizen, Markierungen, Drehung und Ausschnitt stehen als kleiner Anhang im PDF. Das PDF lässt sich dann hier wieder öffnen und weiterbearbeiten. Die Daten stehen im Klartext im PDF.</small></span></label>
       <label class="check"><input type="checkbox" id="hashes"><span>Prüfsummen-Seite (SHA-256) anhängen<small>Belegt später, dass ein Foto unverändert ist.</small></span></label>
       <div class="field"><label for="dpi">Bildauflösung auf der Seite</label>
         <select id="dpi"><option value="110">110 dpi – klein, für Bildschirm</option><option value="150">150 dpi – Standard</option><option value="220">220 dpi – guter Druck</option><option value="300">300 dpi – maximal</option></select></div>
@@ -300,16 +301,16 @@ svg.marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-eve
       <p class="hint">OpenStreetMap liefert Straße und Ort und bekommt dafür die Koordinaten. Offline wird der nächstgelegene Ort aus einer eingebauten Liste genommen. Jeder Ort ist pro Foto änderbar.</p>
       <p class="notice" id="osmNotice" hidden>OpenStreetMap ist hier nicht erreichbar. Orte werden offline ermittelt.</p>
     </section>
-    <p class="hint credits">Foto-Protokoll v0.5.2 · Ortsliste: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) · Adressen: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</p>
+    <p class="hint credits">Foto-Protokoll v0.6.0 · Ortsliste: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) · Adressen: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</p>
   </aside>
 
   <section class="work">
     <div class="drop" id="drop">
-      <p><b>Fotos hierher ziehen</b><span>JPG, PNG, HEIC vom iPhone. Alles bleibt im Browser, nichts wird hochgeladen.</span></p>
+      <p><b>Fotos hierher ziehen</b><span>JPG, PNG, HEIC vom iPhone. Oder ein früher erstelltes Foto-Protokoll-PDF, um es weiterzubearbeiten. Alles bleibt im Browser, nichts wird hochgeladen.</span></p>
       <label class="btn" for="file">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
         Fotos auswählen</label>
-      <input type="file" id="file" multiple accept="image/*,.heic,.heif">
+      <input type="file" id="file" multiple accept="image/*,.heic,.heif,application/pdf,.pdf">
     </div>
     <div class="sample" id="sampleBar" hidden><b>Beispielfotos</b><span>Die Vorschau zeigt erfundene Beispiele. Mit deinen ersten Fotos verschwinden sie.</span></div>
 
@@ -376,7 +377,7 @@ try { regionName = new Intl.DisplayNames(["de"], { type: "region" }); } catch { 
 
 /* ---------- Einstellungen ---------- */
 const DEFAULTS = { fmt: "A4", orient: "p", per: 4, title: "Fotodokumentation", subtitle: "", pageNo: true,
-  capDate: true, capPlace: true, capGps: true, capNote: true, capFile: false, coverOn: false, coverFacts: true, coverText: "", capNum: true, capMarks: true, logoOn: true, hashes: false, embed: true, cmp: false, cmpEdge: "2400", dpi: "150", placeMode: "auto" };
+  capDate: true, capPlace: true, capGps: true, capNote: true, capFile: false, coverOn: false, coverFacts: true, coverText: "", capNum: true, capMarks: true, logoOn: true, hashes: false, embed: true, cmp: false, cmpEdge: "2400", dpi: "150", placeMode: "auto", projData: true };
 let cfg = { ...DEFAULTS };
 try { const s = JSON.parse(localStorage.getItem("fotoprotokoll.cfg") || "null"); if (s) cfg = { ...cfg, ...s }; } catch {}
 const saveCfg = () => { try { localStorage.setItem("fotoprotokoll.cfg", JSON.stringify(cfg)); } catch {} };
@@ -403,7 +404,7 @@ async function setLogo(file) {
 }
 
 const textIds = ["title", "subtitle", "coverText"], selIds = ["fmt", "orient", "dpi", "placeMode", "cmpEdge"],
-      chkIds = ["pageNo", "coverOn", "coverFacts", "capNum", "capDate", "capPlace", "capGps", "capNote", "capMarks", "capFile", "embed", "cmp", "logoOn", "hashes"];
+      chkIds = ["pageNo", "coverOn", "coverFacts", "capNum", "capDate", "capPlace", "capGps", "capNote", "capMarks", "capFile", "embed", "cmp", "logoOn", "hashes", "projData"];
 function syncCover() {
   $("#coverSec").hidden = !cfg.coverOn;
   $("#coverFactsWrap").classList.toggle("off", !cfg.coverOn); $("#coverFacts").disabled = !cfg.coverOn;
@@ -413,15 +414,19 @@ function syncCmp() {
   $("#cmpWrap").classList.toggle("off", !cfg.embed); $("#cmp").disabled = !cfg.embed;
   $("#cmpEdgeWrap").classList.toggle("off", !(cfg.embed && cfg.cmp)); $("#cmpEdge").disabled = !(cfg.embed && cfg.cmp);
 }
+const syncPer = () => $("#per").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.v === +cfg.per)));
+function syncSettings() { // Oberfläche aus cfg füllen
+  textIds.forEach((k) => { $("#" + k).value = cfg[k]; });
+  selIds.forEach((k) => { $("#" + k).value = cfg[k]; });
+  chkIds.forEach((k) => { $("#" + k).checked = !!cfg[k]; });
+  syncPer(); syncCmp();
+}
 function bindSettings() {
-  textIds.forEach((k) => { const el = $("#" + k); el.value = cfg[k]; el.addEventListener("input", () => { cfg[k] = el.value; saveCfg(); render(); }); });
-  selIds.forEach((k) => { const el = $("#" + k); el.value = cfg[k]; el.addEventListener("change", () => { cfg[k] = el.value; saveCfg(); if (k === "placeMode") reresolvePlaces(); render(); }); });
-  chkIds.forEach((k) => { const el = $("#" + k); el.checked = !!cfg[k]; el.addEventListener("change", () => { cfg[k] = el.checked; saveCfg(); syncCmp(); render(); }); });
-  syncCmp();
-  const seg = $("#per");
-  const sync = () => seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.v === +cfg.per)));
-  seg.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; cfg.per = +b.dataset.v; saveCfg(); sync(); render(); });
-  sync();
+  textIds.forEach((k) => { const el = $("#" + k); el.addEventListener("input", () => { cfg[k] = el.value; saveCfg(); render(); }); });
+  selIds.forEach((k) => { const el = $("#" + k); el.addEventListener("change", () => { cfg[k] = el.value; saveCfg(); if (k === "placeMode") reresolvePlaces(); render(); }); });
+  chkIds.forEach((k) => { const el = $("#" + k); el.addEventListener("change", () => { cfg[k] = el.checked; saveCfg(); syncCmp(); render(); }); });
+  $("#per").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; cfg.per = +b.dataset.v; saveCfg(); syncPer(); render(); });
+  syncSettings();
 }
 
 /* ---------- Fotos ---------- */
@@ -507,7 +512,10 @@ async function paintThumb(p, bmp) {
 }
 async function makeThumb(p) {
   const bmp = await createImageBitmap(await decodable(p));
-  p.bw = bmp.width; p.bh = bmp.height; applyView(p);
+  p.bw = bmp.width; p.bh = bmp.height;
+  const [rw, rh] = rotDims(p), c = p.crop; // übernommener Ausschnitt muss ins Bild passen
+  if (c && (c.x + c.w > rw + 1 || c.y + c.h > rh + 1)) p.crop = null;
+  applyView(p);
   p.thumb = await paintThumb(p, bmp);
   bmp.close();
 }
@@ -540,33 +548,137 @@ function setCrop(p, c) {
   return refreshView(p);
 }
 
-async function addFiles(files) {
-  const list = [...files].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|heic|heif|webp|tiff?)$/i.test(f.name));
-  if (!list.length) { toast("Keine Bilddateien gefunden."); return; }
+const isPdf = (f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+let pendingMeta = null; // Projektdaten eines PDFs ohne eingebettete Fotos: die Fotos werden über die SHA-256 zugeordnet
+async function addFiles(files, direct) {
+  const all = [...files], pdfs = all.filter(isPdf);
+  const list = all.filter((f) => (direct && direct.has(f)) || (!isPdf(f) && (f.type.startsWith("image/") || /\.(jpe?g|png|heic|heif|webp|tiff?)$/i.test(f.name))));
+  if (pdfs.length) await openProjectPdf(pdfs[0]);
+  if (!list.length) { if (!pdfs.length) toast("Keine Bilddateien gefunden."); return; }
   if (photos.some((p) => p.sample)) { photos.forEach((p) => p.thumb && URL.revokeObjectURL(p.thumb)); photos = []; }
   const fresh = list.map((f) => ({ id: ++uid, file: f, name: f.name, size: f.size, dt: null, dtSrc: "", gps: null,
     place: "", placeSrc: "", note: "", thumb: "", w: 0, h: 0, bw: 0, bh: 0, rot: 0, crop: null, err: "", busy: true, marks: [] }));
   photos.push(...fresh);
   render();
   for (const p of fresh) {
-    try {
-      const tags = await exifr.parse(p.file, { pick: ["DateTimeOriginal", "CreateDate", "ModifyDate"], reviveValues: false }).catch(() => null);
-      p.dt = parseExifDate(tags && (tags.DateTimeOriginal || tags.CreateDate || tags.ModifyDate));
-      p.dtSrc = p.dt ? "exif" : "";
-      if (!p.dt && p.file.lastModified) { p.dt = parseExifDate(new Date(p.file.lastModified)); p.dtSrc = "datei"; }
-      const g = await exifr.gps(p.file).catch(() => null);
-      if (g && isFinite(g.latitude) && isFinite(g.longitude) && !(g.latitude === 0 && g.longitude === 0)) p.gps = { lat: g.latitude, lon: g.longitude };
-    } catch {}
-    try { await makeThumb(p); } catch (e) { p.err = isHeic(p.file) ? "HEIC nicht lesbar. Bitte als JPG exportieren." : "Bild nicht lesbar."; }
     try { p.sha = await sha256hex(new Uint8Array(await p.file.arrayBuffer())); } catch {}
+    const meta = (direct && direct.get(p.file)) || (pendingMeta && p.sha && pendingMeta.photos.find((m) => !m.used && m.sha === p.sha));
+    if (meta) applyMeta(p, meta); // Daten aus einem früheren Projekt-PDF
+    else {
+      try {
+        const tags = await exifr.parse(p.file, { pick: ["DateTimeOriginal", "CreateDate", "ModifyDate"], reviveValues: false }).catch(() => null);
+        p.dt = parseExifDate(tags && (tags.DateTimeOriginal || tags.CreateDate || tags.ModifyDate));
+        p.dtSrc = p.dt ? "exif" : "";
+        if (!p.dt && p.file.lastModified) { p.dt = parseExifDate(new Date(p.file.lastModified)); p.dtSrc = "datei"; }
+        const g = await exifr.gps(p.file).catch(() => null);
+        if (g && isFinite(g.latitude) && isFinite(g.longitude) && !(g.latitude === 0 && g.longitude === 0)) p.gps = { lat: g.latitude, lon: g.longitude };
+      } catch {}
+    }
+    try { await makeThumb(p); } catch (e) { p.err = isHeic(p.file) ? "HEIC nicht lesbar. Bitte als JPG exportieren." : "Bild nicht lesbar."; }
     p.busy = false;
     render();
   }
-  // neue Fotos chronologisch einsortieren (hinter bestehende)
+  if (pendingMeta && pendingMeta.photos.every((m) => m.used)) pendingMeta = null;
+  // neue Fotos einsortieren (hinter bestehende): zuerst Reihenfolge aus dem Projekt, sonst nach Aufnahmezeit
   const old = photos.filter((p) => !fresh.includes(p));
-  photos = [...old, ...fresh.sort((a, b) => dtKey(a.dt) - dtKey(b.dt))];
+  photos = [...old, ...fresh.sort((a, b) => ((a.mi ?? 1e9) - (b.mi ?? 1e9)) || (dtKey(a.dt) - dtKey(b.dt)))];
   render();
-  fresh.forEach((p) => queuePlace(p));
+  fresh.forEach((p) => { if (!(p.place && p.placeSrc)) queuePlace(p); });
+}
+
+/* ---------- Projekt aus einem früheren PDF wiederherstellen ----------
+   Das PDF enthält neben den Originalen die Datei PROJECT_FILE mit Einstellungen, Notizen, Markierungen, Drehung und Ausschnitt.
+   Alles daraus gilt als unsicher (das PDF kann von überall kommen) und wird vor der Verwendung geprüft. */
+const PROJECT_FILE = "foto-protokoll-projekt.json";
+const isNum = (v) => typeof v === "number" && isFinite(v);
+const clipStr = (v, n = 4000) => (typeof v === "string" ? v.slice(0, n) : "");
+function cleanMark(m) {
+  if (!m || typeof m !== "object" || !["circle", "arrow", "num"].includes(m.t) || !isNum(m.x) || !isNum(m.y) || typeof m.c !== "string" || !/^#[0-9A-Fa-f]{6}$/.test(m.c)) return null;
+  const o = { t: m.t, x: m.x, y: m.y, c: m.c.toUpperCase() };
+  if (m.t === "arrow") { if (!isNum(m.x2) || !isNum(m.y2)) return null; o.x2 = m.x2; o.y2 = m.y2; }
+  else { if (!isNum(m.r) || m.r <= 0) return null; o.r = m.r; if (m.t === "num") o.note = clipStr(m.note, 500); }
+  return o;
+}
+function cleanDt(t) {
+  const rng = { y: [1900, 2200], m: [1, 12], d: [1, 31], H: [0, 23], M: [0, 59], S: [0, 59] };
+  if (!t || typeof t !== "object" || !Object.keys(rng).every((k) => Number.isInteger(t[k]) && t[k] >= rng[k][0] && t[k] <= rng[k][1])) return null;
+  return { y: t.y, m: t.m, d: t.d, H: t.H, M: t.M, S: t.S };
+}
+const cleanGps = (g) => (g && isNum(g.lat) && isNum(g.lon) && Math.abs(g.lat) <= 90 && Math.abs(g.lon) <= 180 ? { lat: g.lat, lon: g.lon } : null);
+const cleanCrop = (c) => (c && [c.x, c.y, c.w, c.h].every(isNum) && c.x >= 0 && c.y >= 0 && c.w > 0 && c.h > 0 ? { x: c.x, y: c.y, w: c.w, h: c.h } : null);
+function cleanProject(j) {
+  if (!j || typeof j !== "object" || j.app !== "Foto-Protokoll" || !Array.isArray(j.photos) || j.photos.length > 2000) return null;
+  const list = j.photos.map((m, i) => {
+    const g = m && typeof m === "object" ? m : {};
+    return { i: Number.isInteger(g.i) ? g.i : i, name: clipStr(g.name, 300) || "Foto " + (i + 1), type: clipStr(g.type, 100), mod: isNum(g.mod) ? g.mod : 0,
+      size: isNum(g.size) ? g.size : 0, sha: /^[0-9a-f]{64}$/.test(g.sha) ? g.sha : "", att: /^\d{4}$/.test(g.att) ? g.att : null, shrunk: !!g.shrunk,
+      dt: cleanDt(g.dt), dtSrc: ["exif", "datei"].includes(g.dtSrc) ? g.dtSrc : "", gps: cleanGps(g.gps), place: clipStr(g.place, 500),
+      placeSrc: ["osm", "offline", "manual"].includes(g.placeSrc) ? g.placeSrc : "", note: clipStr(g.note),
+      marks: (Array.isArray(g.marks) ? g.marks : []).slice(0, 500).map(cleanMark).filter(Boolean), rot: [0, 1, 2, 3].includes(g.rot) ? g.rot : 0, crop: cleanCrop(g.crop) };
+  });
+  const lg = j.logo, logo = lg && typeof lg.data === "string" && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(lg.data) && isNum(lg.w) && isNum(lg.h) && lg.w > 0 && lg.h > 0 ? { data: lg.data, w: lg.w, h: lg.h } : null;
+  return { cfg: j.cfg && typeof j.cfg === "object" ? j.cfg : {}, logo, photos: list };
+}
+function applyMeta(p, m) {
+  m.used = true; p.mi = m.i; p.name = m.name;
+  p.dt = m.dt; p.dtSrc = m.dtSrc; p.gps = m.gps; p.place = m.place; p.placeSrc = m.place ? m.placeSrc || "manual" : ""; p.note = m.note;
+  p.marks = m.marks.map((k) => ({ ...k })); p.rot = m.rot; p.crop = m.crop ? { ...m.crop } : null;
+  if (m.size && !m.shrunk) p.size = m.size;
+}
+function applyProject(pj) {
+  for (const k of Object.keys(DEFAULTS)) if (typeof pj.cfg[k] === typeof DEFAULTS[k]) cfg[k] = pj.cfg[k];
+  for (const k of selIds) if (![...$("#" + k).options].some((o) => o.value === cfg[k])) cfg[k] = DEFAULTS[k];
+  if (!GRID[cfg.per]) cfg.per = DEFAULTS.per;
+  if (pj.logo) { logoData = pj.logo; try { localStorage.setItem("fotoprotokoll.logo", JSON.stringify(logoData)); } catch {} }
+  saveCfg(); syncSettings(); syncLogo();
+}
+// Anhänge (EmbeddedFiles) eines PDFs lesen: [{ key, name, bytes }]
+async function readPdfAttachments(bytes) {
+  const { PDFDocument, PDFName, PDFDict, PDFArray, PDFRawStream, decodePDFRawStream } = PDFLib;
+  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
+  const names = doc.catalog.lookupMaybe(PDFName.of("Names"), PDFDict), tree = names && names.lookupMaybe(PDFName.of("EmbeddedFiles"), PDFDict);
+  const out = [], text = (o) => (o && typeof o.decodeText === "function" ? o.decodeText() : "");
+  const walk = (node, depth) => {
+    if (!node || depth > 8) return;
+    const arr = node.lookupMaybe(PDFName.of("Names"), PDFArray);
+    if (arr) for (let i = 0; i + 1 < arr.size(); i += 2) {
+      const spec = arr.lookupMaybe(i + 1, PDFDict), ef = spec && spec.lookupMaybe(PDFName.of("EF"), PDFDict), st = ef && ef.lookup(PDFName.of("F"));
+      if (!(st instanceof PDFRawStream)) continue;
+      let data; try { data = decodePDFRawStream(st).decode(); } catch { continue; }
+      out.push({ key: text(arr.lookup(i)), name: text(spec.lookup(PDFName.of("UF"))) || text(spec.lookup(PDFName.of("F"))), bytes: data });
+    }
+    const kids = node.lookupMaybe(PDFName.of("Kids"), PDFArray);
+    if (kids) for (let i = 0; i < kids.size(); i++) walk(kids.lookupMaybe(i, PDFDict), depth + 1);
+  };
+  walk(tree, 0);
+  return out;
+}
+async function openProjectPdf(file) {
+  if (!window.PDFLib) { toast("Die PDF-Bibliothek konnte nicht geladen werden. Internetverbindung prüfen."); return; }
+  if (photos.some((p) => !p.sample)) { toast("Zum Öffnen eines Projekt-PDFs zuerst „Alle entfernen“ wählen."); return; }
+  let found, proj;
+  try {
+    found = await readPdfAttachments(new Uint8Array(await file.arrayBuffer()));
+    const pe = found.find((a) => a.name === PROJECT_FILE);
+    if (!pe) { toast("In diesem PDF stehen keine Bearbeitungsdaten. Sie fehlen, wenn die Option „Bearbeitungsdaten im PDF speichern“ aus war oder ein anderes Programm das PDF verändert hat.", false, 9000); return; }
+    const raw = JSON.parse(new TextDecoder().decode(pe.bytes));
+    if (isNum(raw.format) && raw.format > 1) { toast("Dieses PDF stammt aus einer neueren Version von Foto-Protokoll. Bitte die Seite aktualisieren.", false, 9000); return; }
+    proj = cleanProject(raw);
+  } catch (e) { console.warn(e); proj = null; }
+  if (!proj) { toast("Das PDF konnte nicht als Foto-Protokoll gelesen werden."); return; }
+  const direct = new Map(), files = [], rest = [];
+  for (const m of proj.photos) {
+    const a = m.att && found.find((x) => x.key.startsWith(m.att + " "));
+    if (!a) { rest.push(m); continue; }
+    const f = new File([a.bytes], a.name || m.name, { type: m.shrunk ? "image/jpeg" : m.type, lastModified: m.mod || Date.now() });
+    direct.set(f, m); files.push(f);
+  }
+  applyProject(proj);
+  pendingMeta = rest.length ? { photos: rest } : null;
+  if (files.length) await addFiles(files, direct);
+  if (rest.length) toast(`Einstellungen geladen. ${files.length ? "Es fehlen " + rest.length + " Fotos" : "Das PDF enthält keine Fotos"}: Zieh die Originalfotos jetzt hierher, sie werden automatisch zugeordnet.`, false, 10000);
+  else if (proj.photos.some((m) => m.shrunk)) toast("Projekt geladen. Die Fotos waren verkleinert eingebettet, mehr Auflösung steht im PDF nicht zur Verfügung.", false, 9000);
+  else toast("Projekt geladen.");
 }
 
 /* ---------- Ort: OpenStreetMap + Offline ---------- */
@@ -1365,7 +1477,7 @@ async function buildPdf(onProgress) {
 
   // 2) Seiten zeichnen
   const model = buildModel(embMap);
-  const dpi = +cfg.dpi, ef = [];
+  const dpi = +cfg.dpi, ef = [], attOf = new Map();
   let logoImg = null, done = 0;
   for (const pm of model) {
     const page = pdf.addPage([pm.W, pm.H]);
@@ -1418,12 +1530,20 @@ async function buildPdf(onProgress) {
         const fs = ctx.register(ctx.obj({ Type: "Filespec", F: PDFString.of(clean(e.name)), UF: PDFHexString.fromText(e.name),
           EF: { F: sref, UF: sref }, Desc: PDFHexString.fromText(desc), AFRelationship: e.compressed ? "Alternative" : "Source" }));
         ef.push({ key: String(ef.length + 1).padStart(4, "0") + " " + e.name, fs });
+        attOf.set(p, String(ef.length).padStart(4, "0"));
         annots.push(ctx.register(ctx.obj({ Type: "Annot", Subtype: "FileAttachment", Rect: [op.x, Y(op.y, 16), op.x + 12, Y(op.y)], FS: fs, Name: "Paperclip",
           Contents: PDFHexString.fromText((e.compressed ? "Foto (verkleinert): " : "Originaldatei: ") + e.name + " (" + fmtSize(bytes.length) + ")"),
           T: PDFHexString.fromText("Foto-Protokoll"), C: [0.043, 0.42, 0.42], F: 24, P: page.ref })));
       }
     }
     if (annots.length) page.node.set(PDFName.of("Annots"), ctx.obj(annots));
+  }
+  if (cfg.projData) { // Bearbeitungsdaten als Anhang, damit das PDF später wieder geöffnet werden kann
+    const bytes = new TextEncoder().encode(JSON.stringify(projectJson(embMap, attOf)));
+    const sref = ctx.register(ctx.stream(bytes, { Type: "EmbeddedFile", Subtype: "application/json", Params: { Size: bytes.length, ModDate: PDFString.fromDate(new Date()) } }));
+    const fs = ctx.register(ctx.obj({ Type: "Filespec", F: PDFString.of(PROJECT_FILE), UF: PDFHexString.fromText(PROJECT_FILE), EF: { F: sref, UF: sref },
+      Desc: PDFHexString.fromText("Bearbeitungsdaten von Foto-Protokoll (Einstellungen, Notizen, Markierungen). Das PDF in Foto-Protokoll öffnen, um es weiterzubearbeiten."), AFRelationship: "Data" }));
+    ef.push({ key: "0000 " + PROJECT_FILE, fs });
   }
   if (ef.length) {
     const arr = [];
@@ -1432,6 +1552,19 @@ async function buildPdf(onProgress) {
     pdf.catalog.set(PDFName.of("AF"), ctx.obj(ef.map((e) => e.fs)));
   }
   return pdf.save({ useObjectStreams: true });
+}
+
+// Alles, was zum erneuten Bearbeiten nötig ist (die Fotos selbst stehen als Anhänge im PDF; att verweist auf sie)
+function projectJson(embMap, attOf) {
+  return {
+    app: "Foto-Protokoll", format: 1, created: new Date().toISOString(), cfg: { ...cfg },
+    logo: cfg.logoOn && logoData ? { data: logoData.data, w: logoData.w, h: logoData.h } : null,
+    photos: photos.map((p, i) => {
+      const e = embMap.get(p);
+      return { i, name: p.name, type: p.file.type || "", mod: p.file.lastModified || 0, size: p.size, sha: p.sha || "", att: attOf.get(p) || null, shrunk: !!(e && e.compressed),
+        dt: p.dt, dtSrc: p.dtSrc, gps: p.gps, place: p.place, placeSrc: p.placeSrc, note: p.note, marks: p.marks || [], rot: p.rot || 0, crop: p.crop || null };
+    }),
+  };
 }
 
 function drawMarksPdf(page, p, op, Y, F, hex, LineCapStyle) {
@@ -1569,7 +1702,7 @@ let pagesT; function renderPagesOnly() { clearTimeout(pagesT); pagesT = setTimeo
 $("#pages").addEventListener("click", (e) => { const s = e.target.closest(".sheet"); if (!s) return; const i = +s.dataset.page; bigPage = bigPage === i ? -1 : i; render(); });
 $("#pages").addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("sheet")) { e.preventDefault(); e.target.click(); } });
 $("#sortBtn").addEventListener("click", () => { photos.sort((a, b) => dtKey(a.dt) - dtKey(b.dt)); render(); });
-$("#clearBtn").addEventListener("click", () => { photos.forEach((p) => p.thumb && URL.revokeObjectURL(p.thumb)); photos = []; bigPage = -1; render(); });
+$("#clearBtn").addEventListener("click", () => { photos.forEach((p) => p.thumb && URL.revokeObjectURL(p.thumb)); photos = []; pendingMeta = null; bigPage = -1; render(); });
 
 /* ---------- Beispielfotos ---------- */
 async function samples() {

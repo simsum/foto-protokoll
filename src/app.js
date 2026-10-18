@@ -9,7 +9,7 @@ try { regionName = new Intl.DisplayNames(["de"], { type: "region" }); } catch { 
 
 /* ---------- Einstellungen ---------- */
 const DEFAULTS = { fmt: "A4", orient: "p", per: 4, title: "Fotodokumentation", subtitle: "", pageNo: true,
-  capDate: true, capPlace: true, capGps: true, capNote: true, capFile: false, coverOn: false, coverFacts: true, coverText: "", capNum: true, capMarks: true, logoOn: true, hashes: false, embed: true, cmp: false, cmpEdge: "2400", dpi: "150", placeMode: "auto", projData: true };
+  capDate: true, capPlace: true, capGps: true, capNote: true, capFile: false, coverOn: false, coverFacts: true, coverText: "", capNum: true, capMarks: true, logoOn: true, hashes: false, embed: true, cmp: false, cmpEdge: "2400", dpi: "150", placeMode: "auto", projData: true, capWeather: false, wxDetail: "full" };
 let cfg = { ...DEFAULTS };
 try { const s = JSON.parse(localStorage.getItem("fotoprotokoll.cfg") || "null"); if (s) cfg = { ...cfg, ...s }; } catch {}
 const saveCfg = () => { try { localStorage.setItem("fotoprotokoll.cfg", JSON.stringify(cfg)); } catch {} };
@@ -35,8 +35,8 @@ async function setLogo(file) {
   finally { URL.revokeObjectURL(url); }
 }
 
-const textIds = ["title", "subtitle", "coverText"], selIds = ["fmt", "orient", "dpi", "placeMode", "cmpEdge"],
-      chkIds = ["pageNo", "coverOn", "coverFacts", "capNum", "capDate", "capPlace", "capGps", "capNote", "capMarks", "capFile", "embed", "cmp", "logoOn", "hashes", "projData"];
+const textIds = ["title", "subtitle", "coverText"], selIds = ["fmt", "orient", "dpi", "placeMode", "cmpEdge", "wxDetail"],
+      chkIds = ["pageNo", "coverOn", "coverFacts", "capNum", "capDate", "capPlace", "capGps", "capWeather", "capNote", "capMarks", "capFile", "embed", "cmp", "logoOn", "hashes", "projData"];
 function syncCover() {
   $("#coverSec").hidden = !cfg.coverOn;
   $("#coverFactsWrap").classList.toggle("off", !cfg.coverOn); $("#coverFacts").disabled = !cfg.coverOn;
@@ -45,6 +45,7 @@ function syncCmp() {
   syncCover();
   $("#cmpWrap").classList.toggle("off", !cfg.embed); $("#cmp").disabled = !cfg.embed;
   $("#cmpEdgeWrap").classList.toggle("off", !(cfg.embed && cfg.cmp)); $("#cmpEdge").disabled = !(cfg.embed && cfg.cmp);
+  $("#wxDetailWrap").classList.toggle("off", !cfg.capWeather); $("#wxDetail").disabled = !cfg.capWeather;
 }
 const syncPer = () => $("#per").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.v === +cfg.per)));
 function syncSettings() { // Oberfläche aus cfg füllen
@@ -55,8 +56,8 @@ function syncSettings() { // Oberfläche aus cfg füllen
 }
 function bindSettings() {
   textIds.forEach((k) => { const el = $("#" + k); el.addEventListener("input", () => { cfg[k] = el.value; saveCfg(); render(); }); });
-  selIds.forEach((k) => { const el = $("#" + k); el.addEventListener("change", () => { cfg[k] = el.value; saveCfg(); if (k === "placeMode") reresolvePlaces(); render(); }); });
-  chkIds.forEach((k) => { const el = $("#" + k); el.addEventListener("change", () => { cfg[k] = el.checked; saveCfg(); syncCmp(); render(); }); });
+  selIds.forEach((k) => { const el = $("#" + k); el.addEventListener("change", () => { cfg[k] = el.value; saveCfg(); if (k === "placeMode") reresolvePlaces(); if (k === "wxDetail") rebuildWeather(); render(); }); });
+  chkIds.forEach((k) => { const el = $("#" + k); el.addEventListener("change", () => { cfg[k] = el.checked; saveCfg(); syncCmp(); if (k === "capWeather" && cfg.capWeather) photos.forEach(queueWeather); render(); }); });
   $("#per").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; cfg.per = +b.dataset.v; saveCfg(); syncPer(); render(); });
   syncSettings();
 }
@@ -189,7 +190,7 @@ async function addFiles(files, direct) {
   if (!list.length) { if (!pdfs.length) toast("Keine Bilddateien gefunden."); return; }
   if (photos.some((p) => p.sample)) { photos.forEach((p) => p.thumb && URL.revokeObjectURL(p.thumb)); photos = []; }
   const fresh = list.map((f) => ({ id: ++uid, file: f, name: f.name, size: f.size, dt: null, dtSrc: "", gps: null,
-    place: "", placeSrc: "", note: "", thumb: "", w: 0, h: 0, bw: 0, bh: 0, rot: 0, crop: null, err: "", busy: true, marks: [] }));
+    place: "", placeSrc: "", note: "", thumb: "", w: 0, h: 0, bw: 0, bh: 0, rot: 0, crop: null, err: "", busy: true, marks: [], wx: null, weather: "", weatherSrc: "" }));
   photos.push(...fresh);
   render();
   for (const p of fresh) {
@@ -216,6 +217,7 @@ async function addFiles(files, direct) {
   photos = [...old, ...fresh.sort((a, b) => ((a.mi ?? 1e9) - (b.mi ?? 1e9)) || (dtKey(a.dt) - dtKey(b.dt)))];
   render();
   fresh.forEach((p) => { if (!(p.place && p.placeSrc)) queuePlace(p); });
+  if (cfg.capWeather) fresh.forEach(queueWeather);
 }
 
 /* ---------- Projekt aus einem früheren PDF wiederherstellen ----------
@@ -238,6 +240,12 @@ function cleanDt(t) {
 }
 const cleanGps = (g) => (g && isNum(g.lat) && isNum(g.lon) && Math.abs(g.lat) <= 90 && Math.abs(g.lon) <= 180 ? { lat: g.lat, lon: g.lon } : null);
 const cleanCrop = (c) => (c && [c.x, c.y, c.w, c.h].every(isNum) && c.x >= 0 && c.y >= 0 && c.w > 0 && c.h > 0 ? { x: c.x, y: c.y, w: c.w, h: c.h } : null);
+function cleanWx(x) {
+  if (!x || typeof x !== "object" || !["brightsky", "openmeteo"].includes(x.src)) return null;
+  const o = { src: x.src, cond: clipStr(x.cond, 40), model: x.model === "era5" ? "era5" : "", station: clipStr(x.station, 60) };
+  for (const k of ["t", "feels", "hum", "dew", "wind", "dir", "gust", "rain", "snow", "cloud", "press", "vis", "sun", "dist"]) o[k] = wxNum(x[k]);
+  return o;
+}
 function cleanProject(j) {
   if (!j || typeof j !== "object" || j.app !== "Foto-Protokoll" || !Array.isArray(j.photos) || j.photos.length > 2000) return null;
   const list = j.photos.map((m, i) => {
@@ -246,6 +254,7 @@ function cleanProject(j) {
       size: isNum(g.size) ? g.size : 0, sha: /^[0-9a-f]{64}$/.test(g.sha) ? g.sha : "", att: /^\d{4}$/.test(g.att) ? g.att : null, shrunk: !!g.shrunk,
       dt: cleanDt(g.dt), dtSrc: ["exif", "datei"].includes(g.dtSrc) ? g.dtSrc : "", gps: cleanGps(g.gps), place: clipStr(g.place, 500),
       placeSrc: ["osm", "offline", "manual"].includes(g.placeSrc) ? g.placeSrc : "", note: clipStr(g.note),
+      wx: cleanWx(g.wx), weather: clipStr(g.weather, 1000), weatherSrc: ["brightsky", "openmeteo", "manual"].includes(g.weatherSrc) ? g.weatherSrc : "",
       marks: (Array.isArray(g.marks) ? g.marks : []).slice(0, 500).map(cleanMark).filter(Boolean), rot: [0, 1, 2, 3].includes(g.rot) ? g.rot : 0, crop: cleanCrop(g.crop) };
   });
   const lg = j.logo, logo = lg && typeof lg.data === "string" && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(lg.data) && isNum(lg.w) && isNum(lg.h) && lg.w > 0 && lg.h > 0 ? { data: lg.data, w: lg.w, h: lg.h } : null;
@@ -255,6 +264,7 @@ function applyMeta(p, m) {
   m.used = true; p.mi = m.i; p.name = m.name;
   p.dt = m.dt; p.dtSrc = m.dtSrc; p.gps = m.gps; p.place = m.place; p.placeSrc = m.place ? m.placeSrc || "manual" : ""; p.note = m.note;
   p.marks = m.marks.map((k) => ({ ...k })); p.rot = m.rot; p.crop = m.crop ? { ...m.crop } : null;
+  p.wx = m.wx; p.weather = m.weather; p.weatherSrc = m.weatherSrc; p.wxTried = !!(m.wx || m.weather);
   if (m.size && !m.shrunk) p.size = m.size;
 }
 function applyProject(pj) {
@@ -401,6 +411,98 @@ function dist(a1, o1, a2, o2) {
   const R = 6371, r = Math.PI / 180;
   const x = (o2 - o1) * r * Math.cos(((a1 + a2) / 2) * r), y = (a2 - a1) * r;
   return Math.sqrt(x * x + y * y) * R;
+}
+
+/* ---------- Wetter zur Aufnahmezeit: Bright Sky (DWD) bei einer Station im Umkreis, sonst Open-Meteo ----------
+   Die Kamerazeit hat keine Zeitzone: Sie gilt als Ortszeit am Aufnahmeort. Abgefragt wird die nächste volle Stunde. */
+let wxState = "unknown"; // unknown | ok | blocked
+const wxCache = new Map();
+let wxChain = Promise.resolve(), wxLast = 0;
+const wxNum = (v) => (typeof v === "number" && isFinite(v) ? v : null);
+const WX_ICON = { "clear-day": "sonnig", "clear-night": "klar", "partly-cloudy-day": "teils bewölkt", "partly-cloudy-night": "teils bewölkt", cloudy: "bewölkt", fog: "Nebel", wind: "windig", rain: "Regen", sleet: "Schneeregen", snow: "Schnee", hail: "Hagel", thunderstorm: "Gewitter" };
+const WX_COND = { dry: "trocken", fog: "Nebel", rain: "Regen", sleet: "Schneeregen", snow: "Schnee", hail: "Hagel", thunderstorm: "Gewitter" };
+const WMO_DE = { 1: "heiter", 2: "teils bewölkt", 3: "bedeckt", 45: "Nebel", 48: "Reifnebel", 51: "leichter Nieselregen", 53: "Nieselregen", 55: "starker Nieselregen", 56: "gefrierender Nieselregen", 57: "gefrierender Nieselregen",
+  61: "leichter Regen", 63: "Regen", 65: "starker Regen", 66: "gefrierender Regen", 67: "gefrierender Regen", 71: "leichter Schneefall", 73: "Schneefall", 75: "starker Schneefall", 77: "Schneegriesel",
+  80: "leichte Regenschauer", 81: "Regenschauer", 82: "starke Regenschauer", 85: "Schneeschauer", 86: "starke Schneeschauer", 95: "Gewitter", 96: "Gewitter mit Hagel", 99: "Gewitter mit Hagel" };
+const DIRS = ["N", "NNO", "NO", "ONO", "O", "OSO", "SO", "SSO", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+const compass = (deg) => DIRS[Math.round((((deg % 360) + 360) % 360) / 22.5) % 16];
+function wxCloudWord(c) { return c === null ? "" : c < 15 ? "klar" : c < 40 ? "heiter" : c < 75 ? "teils bewölkt" : c < 95 ? "überwiegend bewölkt" : "bedeckt"; }
+
+function wxText(x) {
+  if (!x) return "";
+  const n0 = (v) => String(Math.round(v)), n1 = (v) => nf1.format(v), has = (v) => wxNum(v) !== null, full = cfg.wxDetail !== "short";
+  const src = x.src === "brightsky" ? (x.station ? `DWD Station ${x.station}${has(x.dist) ? " (" + n1(x.dist / 1000) + " km)" : ""}` : "DWD")
+    : x.model === "era5" ? "Open-Meteo, ERA5-Modell" : "Open-Meteo";
+  const parts = [x.cond || ""];
+  if (has(x.t)) parts.push(n1(x.t) + " °C" + (full && has(x.feels) && Math.abs(x.feels - x.t) >= 1 ? ` (gefühlt ${n1(x.feels)} °C)` : ""));
+  if (has(x.wind)) parts.push(`Wind ${n0(x.wind)} km/h` + (has(x.dir) ? " aus " + compass(x.dir) : "") + (full && has(x.gust) && x.gust > x.wind + 1 ? `, Böen ${n0(x.gust)} km/h` : ""));
+  if (has(x.rain)) parts.push(`Niederschlag ${n1(x.rain)} mm/h` + (full && has(x.snow) && x.snow > 0 ? `, Schnee ${n1(x.snow)} cm` : ""));
+  if (full) {
+    if (has(x.hum)) parts.push(`Luftfeuchte ${n0(x.hum)} %`);
+    if (has(x.dew)) parts.push(`Taupunkt ${n1(x.dew)} °C`);
+    if (has(x.cloud)) parts.push(`Bewölkung ${n0(x.cloud)} %`);
+    if (has(x.press)) parts.push(`Luftdruck ${n0(x.press)} hPa`);
+    if (has(x.vis)) parts.push("Sicht " + (x.vis >= 1000 ? n1(x.vis / 1000) + " km" : n0(x.vis) + " m"));
+    if (has(x.sun)) parts.push(`Sonne ${n0(x.sun)} min/h`);
+    parts.push("Quelle: " + src);
+  } else parts.push(`(${x.src === "brightsky" ? "DWD" : "Open-Meteo"})`);
+  return "Wetter: " + parts.filter(Boolean).join(" · ").replace(" · (", " (");
+}
+function wxHour(dt) { // nächste volle Stunde als Wandzeit (die Uhrzeit wird nur zum Rechnen als UTC behandelt)
+  const t = new Date(Date.UTC(dt.y, dt.m - 1, dt.d, dt.H, dt.M + 30));
+  return { day: `${t.getUTCFullYear()}-${p2(t.getUTCMonth() + 1)}-${p2(t.getUTCDate())}`, hh: p2(t.getUTCHours()) };
+}
+async function brightSky(g, h) {
+  const ts = `${h.day}T${h.hh}:00`;
+  const r = await fetch(`https://api.brightsky.dev/weather?lat=${g.lat.toFixed(4)}&lon=${g.lon.toFixed(4)}&date=${ts}&last_date=${ts}&tz=Europe/Berlin&max_dist=30000`);
+  if (r.status === 404) return null; // keine Station im Umkreis (z. B. im Ausland)
+  if (!r.ok) throw new Error("Bright Sky " + r.status);
+  const j = await r.json(), w = j.weather && j.weather[0];
+  if (!w || wxNum(w.temperature) === null) return null;
+  const st = (j.sources || []).find((s) => s.id === w.source_id), cl = wxNum(w.cloud_cover);
+  return { src: "brightsky", cond: WX_ICON[w.icon] || WX_COND[w.condition] || wxCloudWord(cl), t: wxNum(w.temperature), hum: wxNum(w.relative_humidity), dew: wxNum(w.dew_point),
+    wind: wxNum(w.wind_speed), dir: wxNum(w.wind_direction), gust: wxNum(w.wind_gust_speed), rain: wxNum(w.precipitation), cloud: cl, press: wxNum(w.pressure_msl),
+    vis: wxNum(w.visibility), sun: wxNum(w.sunshine), station: st ? clipStr(st.station_name, 60) : "", dist: st ? wxNum(st.distance) : null };
+}
+async function openMeteo(g, h) {
+  const age = (Date.now() - Date.UTC(+h.day.slice(0, 4), +h.day.slice(5, 7) - 1, +h.day.slice(8, 10))) / 864e5;
+  if (age < -1) return null; // Datum in der Zukunft: kein Wetter
+  const era5 = age > 80; // die Vorhersage-Schnittstelle reicht rund 90 Tage zurück, ältere Tage kommen aus dem Archiv
+  const vars = "temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,precipitation,snowfall,weather_code,pressure_msl,cloud_cover,visibility,wind_speed_10m,wind_direction_10m,wind_gusts_10m,sunshine_duration,is_day";
+  const r = await fetch(`https://${era5 ? "archive-api" : "api"}.open-meteo.com/v1/${era5 ? "archive" : "forecast"}?latitude=${g.lat.toFixed(4)}&longitude=${g.lon.toFixed(4)}&start_date=${h.day}&end_date=${h.day}&hourly=${vars}&timezone=auto`);
+  if (r.status === 400) return null;
+  if (!r.ok) throw new Error("Open-Meteo " + r.status);
+  const j = await r.json(), hr = j.hourly, i = hr && Array.isArray(hr.time) ? hr.time.indexOf(`${h.day}T${h.hh}:00`) : -1;
+  if (i < 0) return null;
+  const v = (k) => wxNum(hr[k] && hr[k][i]);
+  if (v("temperature_2m") === null) return null;
+  const code = v("weather_code"), sun = v("sunshine_duration");
+  return { src: "openmeteo", model: era5 ? "era5" : "", cond: code === 0 ? (v("is_day") === 0 ? "klar" : "sonnig") : WMO_DE[code] || wxCloudWord(v("cloud_cover")),
+    t: v("temperature_2m"), feels: v("apparent_temperature"), hum: v("relative_humidity_2m"), dew: v("dew_point_2m"), wind: v("wind_speed_10m"), dir: v("wind_direction_10m"),
+    gust: v("wind_gusts_10m"), rain: v("precipitation"), snow: v("snowfall"), cloud: v("cloud_cover"), press: v("pressure_msl"), vis: v("visibility"), sun: sun === null ? null : Math.round(sun / 60) };
+}
+async function fetchWx(g, h) { // Bright Sky zuerst, bei fehlender Station oder Fehler Open-Meteo
+  let netErr = null;
+  try { const r = await brightSky(g, h); if (r) return r; } catch (e) { netErr = e; }
+  try { return await openMeteo(g, h); } catch (e) { throw netErr || e; }
+}
+const wxWanted = (p) => cfg.capWeather && p.gps && p.dt && p.dtSrc === "exif" && p.weatherSrc !== "manual" && !p.wx && photos.includes(p);
+function queueWeather(p) { wxChain = wxChain.then(() => resolveWeather(p)).catch(() => {}); }
+function rebuildWeather() { photos.forEach((p) => { if (p.wx && p.weatherSrc !== "manual") p.weather = wxText(p.wx); }); }
+async function resolveWeather(p) {
+  if (!wxWanted(p) || wxState === "blocked") return;
+  const h = wxHour(p.dt), key = `${p.gps.lat.toFixed(2)},${p.gps.lon.toFixed(2)},${h.day}T${h.hh}`;
+  let wx = wxCache.get(key);
+  if (!wx) {
+    const wait = 350 - (Date.now() - wxLast); if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    wxLast = Date.now();
+    try { wx = await fetchWx(p.gps, h); if (wx) wxCache.set(key, wx); wxState = "ok"; }
+    catch (e) { console.warn("Wetter", e); if (wxState !== "ok") { wxState = "blocked"; toast("Wetterdaten sind hier nicht erreichbar (kein Internet oder gesperrt)."); } render(); return; }
+  }
+  if (!wxWanted(p)) return;
+  p.wxTried = true;
+  if (wx) { p.wx = wx; p.weather = wxText(wx); p.weatherSrc = wx.src; }
+  render();
 }
 
 /* ---------- Markierungen (Koordinaten in Pixeln des ausgerichteten Originals) ---------- */
@@ -880,6 +982,10 @@ function slotsFor(pg, cw) {
   if (cfg.capNum || cfg.capDate) s.push({ k: "head", h: 12 });
   if (cfg.capPlace) s.push({ k: "place", h: 11 });
   if (cfg.capGps) s.push({ k: "gps", h: 10 });
+  if (cfg.capWeather) {
+    const n = Math.min(4, Math.max(0, ...pg.map((p) => (p.weather ? wrapT(p.weather, "R", 7, cw, 4).length : 0))));
+    if (n) s.push({ k: "weather", h: n * 9 + 1, n });
+  }
   if (cfg.capNote) {
     const n = Math.min(3, Math.max(0, ...pg.map((p) => (p.note ? wrapT(p.note, "R", 8.5, cw, 3).length : 0))));
     if (n) s.push({ k: "note", h: n * 10.6 + 1, n });
@@ -910,6 +1016,8 @@ function caption(ops, s, p, x, y, w, embMap) {
     if (t) ops.push({ o: "t", x, y, s: 8.5, f: "R", c: C_INK, t: fitT(t, "R", 8.5, w) });
   } else if (s.k === "gps") {
     if (p.gps) { const t = fitT("GPS " + fmtGps(p.gps), "R", 7.5, w); ops.push({ o: "t", x, y, s: 7.5, f: "R", c: C_ACC, t }); ops.push({ o: "link", x, y: y - 1, w: tw(t, "R", 7.5), h: 9.5, url: mapUrl(p.gps) }); }
+  } else if (s.k === "weather") {
+    if (p.weather) wrapT(p.weather, "R", 7, w, s.n).forEach((t, k) => ops.push({ o: "t", x, y: y + k * 9, s: 7, f: "R", c: C_MUT, t }));
   } else if (s.k === "note") {
     if (p.note) wrapT(p.note, "R", 8.5, w, s.n).forEach((t, k) => ops.push({ o: "t", x, y: y + k * 10.6, s: 8.5, f: "R", c: C_INK, t }));
   } else if (s.k === "marks") {
@@ -1026,16 +1134,21 @@ function draw() {
       : p.placeSrc === "offline" ? '<span class="chip">Ort: offline, nächster Ort</span>'
       : p.placeSrc === "manual" ? '<span class="chip ok">Ort: manuell</span>'
       : cfg.placeMode === "off" ? "" : '<span class="chip">Ort wird gesucht</span>';
+    const wxChip = !cfg.capWeather || !p.gps || p.busy ? ""
+      : p.weatherSrc === "brightsky" ? '<span class="chip ok">Wetter: DWD</span>' : p.weatherSrc === "openmeteo" ? '<span class="chip ok">Wetter: Open-Meteo</span>'
+      : p.weatherSrc === "manual" ? '<span class="chip ok">Wetter: manuell</span>' : p.dtSrc !== "exif" ? '<span class="chip warn">Wetter: keine Aufnahmezeit</span>'
+      : p.wxTried ? '<span class="chip warn">Wetter: nichts gefunden</span>' : wxState === "blocked" ? "" : '<span class="chip">Wetter wird gesucht</span>';
     const sample = p.sample ? '<span class="chip warn">Beispiel</span>' : "";
     const date = p.dt ? fmtDate(p.dt) + (p.dtSrc === "datei" ? " (Dateidatum)" : "") : "ohne Datum";
     return `<article class="card" data-id="${p.id}">
       ${p.thumb ? `<button type="button" class="tbtn" data-a="mark" aria-label="${esc(p.name)} markieren" style="aspect-ratio:${p.w}/${p.h}"><img class="thumb" alt="" src="${p.thumb}">${marksSvg(p)}<span class="mk">${(nm = viewMarks(p).length) ? nm + " Markierung" + (nm > 1 ? "en" : "") : "Markieren"}</span></button>` : `<div class="thumb missing">${esc(p.err || "lädt …")}</div>`}
       <div class="meta">
-        <div class="top"><span class="fno">Foto ${i + 1}</span><span class="fname">${esc(p.name)}</span>${sample}${chip}</div>
+        <div class="top"><span class="fno">Foto ${i + 1}</span><span class="fname">${esc(p.name)}</span>${sample}${chip}${wxChip}</div>
         <div class="facts"><span>${esc(date)}</span><span>${fmtSize(p.size)}</span>${p.gps ? `<a href="${mapUrl(p.gps)}" target="_blank" rel="noopener">${fmtGps(p.gps)}</a>` : ""}</div>
         <div class="inputs">
           <input type="text" id="place-${p.id}" data-f="place" value="${esc(p.place)}" placeholder="Ort eintragen" aria-label="Ort für ${esc(p.name)}">
           <input type="text" id="note-${p.id}" data-f="note" value="${esc(p.note)}" placeholder="Bemerkung (optional)" aria-label="Bemerkung für ${esc(p.name)}">
+          ${cfg.capWeather ? `<input type="text" class="wide" id="wx-${p.id}" data-f="weather" value="${esc(p.weather || "")}" placeholder="${p.gps ? "Wetter (wird automatisch ermittelt, änderbar; leer = neu ermitteln)" : "Wetter eintragen (ohne GPS nicht automatisch)"}" aria-label="Wetter für ${esc(p.name)}">` : ""}
         </div>
       </div>
       <div class="acts">
@@ -1194,7 +1307,8 @@ function projectJson(embMap, attOf) {
     photos: photos.map((p, i) => {
       const e = embMap.get(p);
       return { i, name: p.name, type: p.file.type || "", mod: p.file.lastModified || 0, size: p.size, sha: p.sha || "", att: attOf.get(p) || null, shrunk: !!(e && e.compressed),
-        dt: p.dt, dtSrc: p.dtSrc, gps: p.gps, place: p.place, placeSrc: p.placeSrc, note: p.note, marks: p.marks || [], rot: p.rot || 0, crop: p.crop || null };
+        dt: p.dt, dtSrc: p.dtSrc, gps: p.gps, place: p.place, placeSrc: p.placeSrc, note: p.note, wx: p.wx || null, weather: p.weather || "", weatherSrc: p.weatherSrc || "",
+        marks: p.marks || [], rot: p.rot || 0, crop: p.crop || null };
     }),
   };
 }
@@ -1328,6 +1442,9 @@ $("#list").addEventListener("input", (e) => {
   const p = photos.find((q) => q.id === +el.closest(".card").dataset.id); if (!p) return;
   p[el.dataset.f] = el.value;
   if (el.dataset.f === "place") p.placeSrc = el.value ? "manual" : "";
+  if (el.dataset.f === "weather") { // von Hand geändert = manuell; leer = automatisch neu ermitteln
+    p.weatherSrc = el.value ? "manual" : ""; if (!el.value) { p.wx = null; p.wxTried = false; queueWeather(p); }
+  }
   renderPagesOnly();
 });
 let pagesT; function renderPagesOnly() { clearTimeout(pagesT); pagesT = setTimeout(render, 250); }

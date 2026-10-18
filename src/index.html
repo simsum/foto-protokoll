@@ -54,6 +54,9 @@
       <label class="check"><input type="checkbox" id="capDate"> Datum und Uhrzeit</label>
       <label class="check"><input type="checkbox" id="capPlace"> Ort</label>
       <label class="check"><input type="checkbox" id="capGps"><span>GPS-Koordinaten<small>Im PDF als Link zur Karte</small></span></label>
+      <label class="check"><input type="checkbox" id="capWeather"><span>Wetter zur Aufnahmezeit<small>Aus GPS und Aufnahmezeit: bei einer Station im Umkreis vom Deutschen Wetterdienst (Bright Sky), sonst von Open-Meteo. Dafür gehen Koordinaten und Datum ins Netz. Im claude.ai-Artifact nicht verfügbar. Open-Meteo ist nur für nicht kommerzielle Nutzung kostenlos.</small></span></label>
+      <div class="field" id="wxDetailWrap"><label for="wxDetail">Umfang des Wetters</label>
+        <select id="wxDetail"><option value="full">Vollständig (alle Werte)</option><option value="short">Kurz (Zustand, Temperatur, Wind, Niederschlag)</option></select></div>
       <label class="check"><input type="checkbox" id="capNote"> Bemerkung</label>
       <label class="check"><input type="checkbox" id="capMarks"><span>Notizen zu nummerierten Markierungen<small>Liste ①②③ mit deinen Notizen unter dem Foto</small></span></label>
       <label class="check"><input type="checkbox" id="capFile"> Dateiname</label>
@@ -78,7 +81,7 @@
       <p class="hint">OpenStreetMap liefert Straße und Ort und bekommt dafür die Koordinaten. Offline wird der nächstgelegene Ort aus einer eingebauten Liste genommen. Jeder Ort ist pro Foto änderbar.</p>
       <p class="notice" id="osmNotice" hidden>OpenStreetMap ist hier nicht erreichbar. Orte werden offline ermittelt.</p>
     </section>
-    <p class="hint credits">Foto-Protokoll __VERSION__ · Ortsliste: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) · Adressen: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende</p>
+    <p class="hint credits">Foto-Protokoll __VERSION__ · Ortsliste: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) · Adressen: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende · Wetter: <a href="https://brightsky.dev/" target="_blank" rel="noopener">Bright Sky</a> (Deutscher Wetterdienst), <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0)</p>
   </aside>
 
   <section class="work">

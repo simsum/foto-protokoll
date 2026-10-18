@@ -159,6 +159,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
 .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 @media (max-width: 700px) { .inputs { grid-template-columns: 1fr; } }
+.inputs .wide { grid-column: 1 / -1; }
 .inputs input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-2); font-size: 13px; }
 .acts { display: flex; gap: 4px; }
 .icon { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; cursor: pointer; color: var(--muted); }

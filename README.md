@@ -30,6 +30,7 @@ Ohne Internet bleibt alles nutzbar. Den Ort bestimmt das Tool dann offline aus d
 - Fotonummer („Foto 3“) sowie Datum und Uhrzeit aus den EXIF-Daten
 - Ort: über OpenStreetMap mit Straße und Hausnummer, sonst offline der nächste Ort. Pro Foto änderbar.
 - GPS-Koordinaten, im PDF als Link zur Karte
+- **Wetter zur Aufnahmezeit** (optional, Einstellung „Wetter zur Aufnahmezeit“): Zustand, Temperatur (gefühlt), Wind mit Richtung und Böen, Niederschlag, Luftfeuchte, Taupunkt, Bewölkung, Luftdruck, Sicht, Sonnenschein und die Quelle. Ermittelt aus GPS und Aufnahmezeit für die nächste volle Stunde. Pro Foto änderbar, Umfang „Vollständig“ oder „Kurz“.
 - Bemerkung, Notizen zu nummerierten Markierungen, Dateiname
 
 **Drehen und Ausschnitt**
@@ -80,6 +81,7 @@ Abweichend vom Standard-Markdown bleibt jeder Zeilenumbruch erhalten. Eine Leerz
 
 - Fotos, Markierungen und Notizen bleiben im Browser. Es gibt keinen Server und kein Tracking.
 - Nur zur Ortsermittlung gehen die **GPS-Koordinaten** (nicht die Fotos) an OpenStreetMap Nominatim, höchstens eine Anfrage pro Sekunde. Mit der Einstellung „Nur offline“ oder „Aus“ geht nichts ins Netz.
+- Nur wenn „Wetter zur Aufnahmezeit“ eingeschaltet ist (Standard: aus), gehen **Koordinaten und Aufnahmedatum** pro Foto an [Bright Sky](https://brightsky.dev/) (Daten des Deutschen Wetterdienstes, bei einer Station im Umkreis von 30 km) oder sonst an [Open-Meteo](https://open-meteo.com/). Open-Meteo ist nach seinen Bedingungen nur für nicht kommerzielle Nutzung kostenlos, für den geschäftlichen Einsatz außerhalb Deutschlands bitte dort die Bedingungen prüfen. Das Wetter gilt für die nächste Station bzw. das Wettermodell, nicht für den genauen Standort. Fotos ohne EXIF-Aufnahmezeit bekommen kein automatisches Wetter. Im claude.ai-Artifact sind die Dienste blockiert.
 - Einstellungen, Titelseitentext und Logo werden im Browser gespeichert (`localStorage`). Fotos und Markierungen nicht: Nach dem Neuladen sind sie weg. Zum Sichern das PDF erstellen und später wieder öffnen (siehe „PDF später weiterbearbeiten“).
 
 ## Entwicklung

@@ -1,8 +1,8 @@
-# Übergabe – Stand 18.10.2026 (v0.6.0)
+# Übergabe – Stand 18.10.2026 (v0.7.0)
 
 ## Was fertig ist
 
-- Tool mit allen Funktionen aus dem [CHANGELOG](CHANGELOG.md): Fotos → PDF mit Datum, Uhrzeit, GPS, Ort, Fotonummern, Markierungen (Kreis, Pfeil, Nummer + Notiz), Fotos drehen und Ausschnitt wählen, PDF später wieder öffnen und weiterbearbeiten, Firmenlogo, Titelseite mit Markdown, eingebettete (optional verkleinerte) Originale, SHA-256-Prüfsummenseite.
+- Tool mit allen Funktionen aus dem [CHANGELOG](CHANGELOG.md): Fotos → PDF mit Datum, Uhrzeit, GPS, Ort, Fotonummern, Markierungen (Kreis, Pfeil, Nummer + Notiz), Fotos drehen und Ausschnitt wählen, PDF später wieder öffnen und weiterbearbeiten, Wetter zur Aufnahmezeit (DWD, Open-Meteo), Firmenlogo, Titelseite mit Markdown, eingebettete (optional verkleinerte) Originale, SHA-256-Prüfsummenseite.
 - Fertige Datei zum direkten Benutzen: `dist/Foto-Protokoll.html` (doppelklicken).
 - Automatische Tests (`test/e2e.mjs`) – lokal und auf GitHub (`ci.yml`) bestanden.
 - Doku: `README.md`, `docs/ARCHITEKTUR.md`, `CHANGELOG.md`, Entwicklungsnotizen in `CLAUDE.md`.

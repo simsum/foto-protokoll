@@ -69,6 +69,14 @@ Seitenarten in Reihenfolge: Titelseite(n) (`coverPages()`), Fotoseiten, Prüfsum
 - Fehlen Anhänge, merkt sich `pendingMeta` die restlichen Fotos; später hinzugefügte Fotos werden über die SHA-256 zugeordnet.
 - Sicherheit: Alles aus dem PDF ist unsicher. `cleanProject()` lässt nur bekannte Felder, Zahlen im gültigen Bereich, Farben als `#RRGGBB`, ein PNG-Logo als Data-URL und gekürzte Texte durch; Einstellungen müssen zum Typ in `DEFAULTS` passen, Auswahlwerte zu einer vorhandenen Option. Texte werden wie bisher beim Ausgeben maskiert (`esc()`).
 
+### Wetter zur Aufnahmezeit
+
+- Nur mit `cfg.capWeather` und nur für Fotos mit GPS und EXIF-Aufnahmezeit (`dtSrc === "exif"`, das Dateidatum ist unzuverlässig). `wxHour()` rundet die Aufnahmezeit auf die nächste volle Stunde; die Kamerazeit gilt als Ortszeit am Aufnahmeort.
+- `fetchWx()` fragt zuerst `brightSky()` (DWD, `max_dist=30000`, `tz=Europe/Berlin`); bei „404 keine Station“ oder einem Fehler folgt `openMeteo()` (Vorhersage-Schnittstelle bis ca. 80 Tage zurück, älter das ERA5-Archiv, `timezone=auto`). Beide liefern ein gemeinsames Objekt `wx` (`t, feels, hum, dew, wind, dir, gust, rain, snow, cloud, press, vis, sun, cond, src, station, dist, model`). Fehlende Werte sind `null` und erscheinen nicht.
+- `wxText()` baut daraus die deutsche Zeile (Umfang `cfg.wxDetail`: `full` oder `short`); sie steht in `p.weather`, `p.weatherSrc` ist `brightsky`, `openmeteo` oder `manual`. Von Hand geänderte Zeilen werden nie überschrieben, ein leeres Feld löst eine neue Abfrage aus. Das Layout kennt den Platz `weather` (bis zu 4 Zeilen à 7 pt).
+- Ergebnisse werden pro ca. 1 km und Stunde zwischengespeichert, Abfragen laufen nacheinander mit mindestens 350 ms Abstand. Schlägt die erste Abfrage fehl (kein Netz, Sperre wie im Claude-Artifact), erscheint einmal ein Hinweis und es wird nicht weiter versucht (`wxState`).
+- `wx`, `weather` und `weatherSrc` stehen in den Projektdaten im PDF; `cleanWx()` lässt beim Einlesen nur bekannte Felder mit Zahlen und gekürzten Texten durch.
+
 ### Ortsermittlung
 
 1. **OpenStreetMap Nominatim** (`reverse`, `zoom=18`): höchstens eine Anfrage pro Sekunde, Ergebnisse werden pro ~10 m zwischengespeichert. Schlägt die erste Anfrage fehl (offline, oder Sperre wie im Claude-Artifact), schaltet das Tool für die Sitzung auf offline um.
@@ -95,5 +103,6 @@ Seitenarten in Reihenfolge: Titelseite(n) (`coverPages()`), Fotoseiten, Prüfsum
 - die SHA-256-Werte auf der Prüfsummenseite
 - Titelseite mit Markdown, Fotonummern, Markierungsnotizen
 - dass verkleinerte Originale das Aufnahmedatum behalten
+- Wetter: DWD in Deutschland, Open-Meteo im Ausland (mit Testantworten), Werte in der Zeile und im PDF, nach dem erneuten Öffnen ohne neue Abfrage, Hinweis ohne Netz, manuelle Eingabe bleibt
 - PDF erneut öffnen: Wiederherstellung aus eingebetteten Originalen (bitgenau), Zuordnung über die Prüfsumme ohne Originale, PDF ohne Projektdaten, manipulierte Projektdaten (kein Schadcode)
 - Drehen und Ausschnitt: Markierungen wandern mit, liegen sie außerhalb, verschwindet die Nummer samt Notiz, die Originale bleiben bitgenau

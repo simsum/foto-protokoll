@@ -2,6 +2,18 @@
 
 Alle nennenswerten Änderungen. Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.7.0] – 2026-10-18
+
+### Neu
+- **Wetter zur Aufnahmezeit** (Einstellung „Wetter zur Aufnahmezeit“, standardmäßig aus): Aus GPS-Position und Aufnahmezeit holt das Tool das Wetter der nächsten vollen Stunde und setzt es als Zeile unter das Foto. Angezeigt werden Zustand, Temperatur (gefühlt), Wind mit Richtung und Böen, Niederschlag, Schnee, Luftfeuchte, Taupunkt, Bewölkung, Luftdruck, Sicht, Sonnenschein und die Quelle (bei DWD mit Stationsname und Entfernung).
+- Quellen: Bei einer DWD-Station im Umkreis von 30 km [Bright Sky](https://brightsky.dev/) (Messwerte des Deutschen Wetterdienstes), sonst [Open-Meteo](https://open-meteo.com/) (Vorhersage-Schnittstelle bis rund 80 Tage zurück, ältere Tage aus dem ERA5-Archiv).
+- Pro Foto ein Eingabefeld „Wetter“: von Hand änderbar, leer lassen ermittelt es neu. Umfang „Vollständig“ oder „Kurz“ wählbar.
+- Das Wetter steht in den Bearbeitungsdaten im PDF und wird beim erneuten Öffnen ohne neue Abfrage wiederhergestellt.
+- Ohne Netz oder im claude.ai-Artifact erscheint ein Hinweis, manuelle Eingabe geht weiter.
+
+### Hinweise
+- Es gehen Koordinaten und Datum an die Wetterdienste (nur wenn die Einstellung an ist). Open-Meteo ist kostenlos nur für nicht kommerzielle Nutzung.
+
 ## [0.6.0] – 2026-10-18
 
 ### Neu

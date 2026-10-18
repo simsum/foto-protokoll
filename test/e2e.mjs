@@ -270,13 +270,89 @@ await test("PDF ohne Projektdaten wird erkannt, Schalter 'Bearbeitungsdaten' abw
   } finally { await p2.close(); }
 });
 
+// ---- Wetter: Bright Sky (DWD) in Deutschland, Open-Meteo sonst (beide mit Testantworten) ----
+const CORS = { "access-control-allow-origin": "*" };
+async function wxMocks(page) {
+  const calls = { bs: 0, om: 0 };
+  await page.route(/api\.brightsky\.dev\//, (r) => {
+    calls.bs++;
+    const u = new URL(r.request().url()), lat = +u.searchParams.get("lat"), lon = +u.searchParams.get("lon"), ts = u.searchParams.get("date");
+    if (!(lat > 47 && lat < 55.1 && lon > 5.8 && lon < 15.1)) return r.fulfill({ status: 404, contentType: "application/json", headers: CORS, body: JSON.stringify({ detail: "No sources match your criteria" }) });
+    r.fulfill({ status: 200, contentType: "application/json", headers: CORS, body: JSON.stringify({ weather: [{ timestamp: ts + ":00+02:00", source_id: 1, precipitation: 0.2, pressure_msl: 1012.8, sunshine: 0,
+      temperature: 12.8, wind_direction: 240, wind_speed: 9, cloud_cover: 100, dew_point: 10.5, relative_humidity: 86, visibility: 64680, wind_gust_speed: 18.7, condition: "rain", icon: "rain" }],
+      sources: [{ id: 1, station_name: "Bamberg", distance: 2806 }] }) });
+  });
+  await page.route(/open-meteo\.com\//, (r) => {
+    calls.om++;
+    const day = new URL(r.request().url()).searchParams.get("start_date"), hours = Array.from({ length: 24 }, (_, i) => `${day}T${String(i).padStart(2, "0")}:00`), col = (v) => hours.map(() => v);
+    r.fulfill({ status: 200, contentType: "application/json", headers: CORS, body: JSON.stringify({ hourly: { time: hours, temperature_2m: col(21.4), apparent_temperature: col(22.9), relative_humidity_2m: col(56),
+      dew_point_2m: col(11.8), precipitation: col(0), snowfall: col(0), weather_code: col(3), pressure_msl: col(1013.1), cloud_cover: col(100), visibility: col(40500), wind_speed_10m: col(7),
+      wind_direction_10m: col(162), wind_gusts_10m: col(20), sunshine_duration: col(1800), is_day: col(1) } }) });
+  });
+  return calls;
+}
+const wxValues = (page) => page.$$eval(".card input[data-f=weather]", (els) => els.map((e) => e.value));
+
+await test("Wetter: DWD in Deutschland, Open-Meteo im Ausland, im PDF und nach dem erneuten Öffnen", async (page) => {
+  let before;
+  const pdf = await session(page, async (p) => {
+    await wxMocks(p);
+    await addFixtures(p);
+    await p.uncheck("#cmp"); await p.check("#embed"); await p.check("#projData");
+    await p.check("#capWeather");
+    await p.waitForFunction(() => { const v = [...document.querySelectorAll(".card input[data-f=weather]")].map((e) => e.value); return v.some((x) => x.includes("DWD Station Bamberg (2,8 km)")) && v.some((x) => x.includes("Open-Meteo")); });
+    before = await wxValues(p);
+    const full = before.find((x) => x.includes("DWD"));
+    for (const s of ["Wetter: Regen", "12,8 °C", "Wind 9 km/h aus WSW", "Böen 19 km/h", "Niederschlag 0,2 mm/h", "Luftfeuchte 86 %", "Taupunkt 10,5 °C", "Bewölkung 100 %", "Luftdruck 1013 hPa", "Sicht 64,7 km"])
+      assert.ok(full.includes(s), `Wetterwert fehlt: ${s} in ${full}`);
+    const om = before.find((x) => x.includes("Open-Meteo"));
+    for (const s of ["Wetter: bedeckt", "21,4 °C (gefühlt 22,9 °C)", "Wind 7 km/h aus SSO", "Sonne 30 min/h"]) assert.ok(om.includes(s), `Wetterwert fehlt: ${s} in ${om}`);
+    // kurzer Umfang
+    await p.selectOption("#wxDetail", "short");
+    await p.waitForFunction(() => [...document.querySelectorAll(".card input[data-f=weather]")].some((e) => e.value.includes("(DWD)") && !e.value.includes("Luftdruck")));
+    await p.selectOption("#wxDetail", "full");
+    await p.waitForFunction(() => [...document.querySelectorAll(".card input[data-f=weather]")].some((e) => e.value.includes("Luftdruck")));
+    before = await wxValues(p);
+    await p.waitForTimeout(400);
+  });
+  const text = pdfText(pdf);
+  assert.ok(text.includes("Wetter: Regen"), "Wetter (DWD) fehlt im PDF");
+  assert.ok(text.includes("Wetter: bedeckt"), "Wetter (Open-Meteo) fehlt im PDF");
+  const p2 = await ctx.newPage();
+  try {
+    const calls = await wxMocks(p2);
+    await openPdf(p2, pdf);
+    await p2.waitForFunction((n) => [...document.querySelectorAll(".card input[data-f=weather]")].map((e) => e.value).join("|") === n, before.join("|"));
+    await p2.waitForTimeout(800);
+    assert.equal(calls.bs + calls.om, 0, "Wetter wurde nach dem Öffnen erneut abgefragt");
+    assert.equal(await p2.isChecked("#capWeather"), true);
+  } finally { await p2.close(); }
+});
+
+await test("Wetter: ohne Netz erscheint ein Hinweis, manuelle Eingabe bleibt", async (page) => {
+  const errors = []; page.on("pageerror", (e) => errors.push(e.message));
+  await offline(page);
+  await page.goto("file://" + resolve(root, "dist/Foto-Protokoll.html"));
+  await page.waitForFunction(() => document.querySelectorAll(".card").length === 4);
+  await addFixtures(page);
+  await page.uncheck("#capWeather"); await page.check("#capWeather");
+  await page.waitForSelector("#toast:not([hidden])");
+  assert.match(await page.textContent("#toast"), /Wetterdaten sind hier nicht erreichbar/);
+  const gpsCard = page.locator(".card", { hasText: "Ort:" }).first(); // eine Karte mit GPS
+  await gpsCard.locator("input[data-f=weather]").fill("Wetter: trocken, 18 °C");
+  await page.waitForTimeout(500);
+  assert.equal(await gpsCard.locator("input[data-f=weather]").inputValue(), "Wetter: trocken, 18 °C", "manuelle Eingabe wurde überschrieben");
+  assert.match(await gpsCard.textContent(), /Wetter: manuell/);
+  assert.deepEqual(errors, [], "JavaScript-Fehler auf der Seite");
+});
+
 await test("Manipuliertes Projekt-PDF: Schadcode in den Daten wird nicht ausgeführt", async (page) => {
   const { PDFDocument } = await import("pdf-lib");
   const evil = "<img src=x onerror=window.__pwn=1>";
   const doc = await PDFDocument.create(); doc.addPage();
   await doc.attach(readFileSync(join(fixDir, fixtures[0])), "0001 a.jpg", { mimeType: "image/jpeg" });
-  const proj = { app: "Foto-Protokoll", format: 1, cfg: { title: evil, fmt: "A99", per: 7, dpi: "1" }, logo: { data: "javascript:window.__pwn=1", w: 5, h: 5 },
-    photos: [{ i: 0, name: evil + ".jpg", att: "0001", place: evil, placeSrc: "manual", note: evil, rot: 9, crop: { x: -5, y: 0, w: 1e9, h: 5 },
+  const proj = { app: "Foto-Protokoll", format: 1, cfg: { title: evil, fmt: "A99", per: 7, dpi: "1", capWeather: true, wxDetail: "<script>" }, logo: { data: "javascript:window.__pwn=1", w: 5, h: 5 },
+    photos: [{ i: 0, name: evil + ".jpg", att: "0001", place: evil, placeSrc: "manual", note: evil, weather: evil, weatherSrc: "manual", wx: { src: "openmeteo", cond: evil, t: "<b>", station: evil }, rot: 9, crop: { x: -5, y: 0, w: 1e9, h: 5 },
       dt: { y: "<b>", m: 1, d: 1, H: 1, M: 1, S: 1 }, gps: { lat: "x", lon: 1 },
       marks: [{ t: "circle", x: 10, y: 10, r: 5, c: '"/><script>window.__pwn=1</script>' }, { t: "num", x: 5, y: 5, r: 5, c: "#E3242B", note: evil }, { t: "arrow", x: "a" }] }] };
   await doc.attach(Buffer.from(JSON.stringify(proj)), "foto-protokoll-projekt.json", { mimeType: "application/json" });

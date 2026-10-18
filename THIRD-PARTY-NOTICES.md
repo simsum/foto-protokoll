@@ -26,6 +26,10 @@ Diese Bibliotheken werden beim Öffnen von einem CDN nachgeladen. Ihre Lizenzen 
 
 - Adressen aus GPS-Koordinaten: © [OpenStreetMap](https://www.openstreetmap.org/copyright)-Mitwirkende, abgefragt über Nominatim (Daten unter [ODbL](https://opendatacommons.org/licenses/odbl/)). Es werden nur Koordinaten übertragen.
 
+- Wetter zur Aufnahmezeit (nur wenn die Einstellung eingeschaltet ist; es werden Koordinaten und Aufnahmedatum übertragen):
+  - Bei einer Station in Deutschland: Messdaten des [Deutschen Wetterdienstes](https://www.dwd.de/) (DWD Open Data, Datenbasis: Deutscher Wetterdienst), abgefragt über die freie Schnittstelle [Bright Sky](https://brightsky.dev/).
+  - Sonst: [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). Die kostenlose Schnittstelle gilt nur für **nicht kommerzielle** Nutzung, für kommerziellen Einsatz verlangt Open-Meteo ein Abonnement. Die Rückwärtsdaten stammen aus dem ERA5-Archiv („Generated using Copernicus Climate Change Service information“).
+
 ## Nur für Entwicklung und Tests
 
 | Paket | Lizenz |

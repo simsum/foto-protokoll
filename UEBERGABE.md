@@ -24,4 +24,4 @@ Mit Claude weiterarbeiten: Ordner in Claude (Cowork oder Claude Code) öffnen. C
 ## Offene Punkte
 
 1. **OpenStreetMap-Abfrage** aus der lokalen Datei (`file://`) ist noch nicht mit echtem Netz getestet. Auf der Webseite ist sie nutzbar.
-2. **Claude-Artifact** auf claude.ai (privat, Version 7) entspricht v0.5.2. Bei Änderungen `dist/artifact.html` neu veröffentlichen (siehe `CLAUDE.md`). Link: https://claude.ai/artifact/Kaj9KAxqtwM9NciN4jzapa
+2. **Claude-Artifact** auf claude.ai (privat, Version 8) entspricht v0.6.0. Bei Änderungen `dist/artifact.html` neu veröffentlichen (siehe `CLAUDE.md`). Link: https://claude.ai/artifact/Kaj9KAxqtwM9NciN4jzapa

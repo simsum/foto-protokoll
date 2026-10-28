@@ -1830,7 +1830,10 @@ $("#list").addEventListener("input", (e) => {
   const ce = el.closest(".card").querySelector(".chips"); if (ce) ce.innerHTML = chipsHtml(p); // nur Chips, Eingabefelder bleiben (Android-Tastatur)
   renderPagesOnly();
 });
-let pagesT; function renderPagesOnly() { clearTimeout(pagesT); pagesT = setTimeout(() => render(true), 250); }
+// Touch-Geräte: Vorschau erst beim Verlassen des Feldes, sonst ruckelt die Eingabe mit Bildschirmtastatur
+const touchUi = window.matchMedia && matchMedia("(pointer: coarse)").matches;
+let pagesT; function renderPagesOnly() { clearTimeout(pagesT); if (touchUi) return; pagesT = setTimeout(() => render(true), 250); }
+$("#list").addEventListener("focusout", (e) => { if (touchUi && e.target.dataset && e.target.dataset.f) { clearTimeout(pagesT); render(true); } });
 $("#pages").addEventListener("click", (e) => { const s = e.target.closest(".sheet"); if (!s) return; const i = +s.dataset.page; bigPage = bigPage === i ? -1 : i; render(); });
 $("#pages").addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("sheet")) { e.preventDefault(); e.target.click(); } });
 $("#sortBtn").addEventListener("click", () => { photos.sort((a, b) => dtKey(a.dt) - dtKey(b.dt)); render(); });

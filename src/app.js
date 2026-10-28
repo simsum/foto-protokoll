@@ -1109,25 +1109,10 @@ const ICON = {
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 let bigPage = -1;
 let rafPending = false;
-function render() { if (rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; draw(); }); }
+let listSkip = true; // true = Liste unverändert lassen (nur Seiten/Statistik neu); jeder normale render() setzt es zurück
+function render(keepList) { if (!keepList) listSkip = false; if (rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; const s = listSkip; listSkip = true; draw(s); }); }
 
-function draw() {
-  const model = buildModel(null);
-  const pagesEl = $("#pages");
-  if (!photos.length) {
-    pagesEl.innerHTML = '<div class="empty">Noch keine Fotos. Zieh Bilder in das Feld oben.</div>';
-  } else {
-    pagesEl.innerHTML = model.map((pm, pi) => `<figure class="pagewrap${bigPage === pi ? " big" : ""}" style="margin:0"><div class="sheet" data-page="${pi}" role="button" tabindex="0" aria-label="Seite ${pi + 1} vergrößern" style="aspect-ratio:${pm.W.toFixed(2)}/${pm.H.toFixed(2)}">${pageHtml(pm)}</div><figcaption>Seite ${pi + 1} · ${pm.kind === "hash" ? "Prüfsummen" : cfg.fmt + " " + (cfg.orient === "l" ? "quer" : "hoch")}</figcaption></figure>`).join("");
-  }
-  $("#pageInfo").textContent = photos.length ? `${model.length} ${model.length === 1 ? "Seite" : "Seiten"}` : "";
-
-  // Liste – Eingabefelder mit Fokus nicht neu aufbauen
-  const listEl = $("#list");
-  const active = document.activeElement;
-  const keepFocus = active && listEl.contains(active) && active.tagName === "INPUT" ? { id: active.id, s: active.selectionStart, e: active.selectionEnd } : null;
-  $("#listHead").textContent = `Fotos (${photos.length})`;
-  let nm = 0;
-  listEl.innerHTML = photos.map((p, i) => {
+function chipsHtml(p) {
     const chip = p.busy ? '<span class="chip">wird gelesen</span>'
       : !p.gps ? '<span class="chip warn">kein GPS</span>'
       : p.placeSrc === "osm" ? '<span class="chip ok">Ort: OpenStreetMap</span>'
@@ -1139,11 +1124,32 @@ function draw() {
       : p.weatherSrc === "manual" ? '<span class="chip ok">Wetter: manuell</span>' : p.dtSrc !== "exif" ? '<span class="chip warn">Wetter: keine Aufnahmezeit</span>'
       : p.wxTried ? '<span class="chip warn">Wetter: nichts gefunden</span>' : wxState === "blocked" ? "" : '<span class="chip">Wetter wird gesucht</span>';
     const sample = p.sample ? '<span class="chip warn">Beispiel</span>' : "";
+  return sample + chip + wxChip;
+}
+
+function draw(skipList) {
+  const model = buildModel(null);
+  const pagesEl = $("#pages");
+  if (!photos.length) {
+    pagesEl.innerHTML = '<div class="empty">Noch keine Fotos. Zieh Bilder in das Feld oben.</div>';
+  } else {
+    pagesEl.innerHTML = model.map((pm, pi) => `<figure class="pagewrap${bigPage === pi ? " big" : ""}" style="margin:0"><div class="sheet" data-page="${pi}" role="button" tabindex="0" aria-label="Seite ${pi + 1} vergrößern" style="aspect-ratio:${pm.W.toFixed(2)}/${pm.H.toFixed(2)}">${pageHtml(pm)}</div><figcaption>Seite ${pi + 1} · ${pm.kind === "hash" ? "Prüfsummen" : cfg.fmt + " " + (cfg.orient === "l" ? "quer" : "hoch")}</figcaption></figure>`).join("");
+  }
+  $("#pageInfo").textContent = photos.length ? `${model.length} ${model.length === 1 ? "Seite" : "Seiten"}` : "";
+
+  // Liste – beim Tippen nicht neu aufbauen (sonst flackert auf Android die Tastatur)
+  if (skipList) { drawStats(model); return; }
+  const listEl = $("#list");
+  const active = document.activeElement;
+  const keepFocus = active && listEl.contains(active) && active.tagName === "INPUT" ? { id: active.id, s: active.selectionStart, e: active.selectionEnd } : null;
+  $("#listHead").textContent = `Fotos (${photos.length})`;
+  let nm = 0;
+  listEl.innerHTML = photos.map((p, i) => {
     const date = p.dt ? fmtDate(p.dt) + (p.dtSrc === "datei" ? " (Dateidatum)" : "") : "ohne Datum";
     return `<article class="card" data-id="${p.id}">
       ${p.thumb ? `<button type="button" class="tbtn" data-a="mark" aria-label="${esc(p.name)} markieren" style="aspect-ratio:${p.w}/${p.h}"><img class="thumb" alt="" src="${p.thumb}">${marksSvg(p)}<span class="mk">${(nm = viewMarks(p).length) ? nm + " Markierung" + (nm > 1 ? "en" : "") : "Markieren"}</span></button>` : `<div class="thumb missing">${esc(p.err || "lädt …")}</div>`}
       <div class="meta">
-        <div class="top"><span class="fno">Foto ${i + 1}</span><span class="fname">${esc(p.name)}</span>${sample}${chip}${wxChip}</div>
+        <div class="top"><span class="fno">Foto ${i + 1}</span><span class="fname">${esc(p.name)}</span><span class="chips" style="display:contents">${chipsHtml(p)}</span></div>
         <div class="facts"><span>${esc(date)}</span><span>${fmtSize(p.size)}</span>${p.gps ? `<a href="${mapUrl(p.gps)}" target="_blank" rel="noopener">${fmtGps(p.gps)}</a>` : ""}</div>
         <div class="inputs">
           <input type="text" id="place-${p.id}" data-f="place" value="${esc(p.place)}" placeholder="Ort eintragen" aria-label="Ort für ${esc(p.name)}">
@@ -1163,6 +1169,10 @@ function draw() {
   if (keepFocus) { const el = document.getElementById(keepFocus.id); if (el) { el.focus(); try { el.setSelectionRange(keepFocus.s, keepFocus.e); } catch {} } }
 
   $("#sampleBar").hidden = !photos.some((p) => p.sample);
+  drawStats(model);
+}
+
+function drawStats(model) {
   const orig = photos.reduce((s, p) => s + estEmbedded(p), 0);
   const dpi = +cfg.dpi;
   const est = model.reduce((s, pm) => s + pm.ops.reduce((t, op) => t + (op.o === "img" ? (op.w * dpi / 72) * (op.h * dpi / 72) * 0.17 : 0), 0), 0);
@@ -1445,9 +1455,10 @@ $("#list").addEventListener("input", (e) => {
   if (el.dataset.f === "weather") { // von Hand geändert = manuell; leer = automatisch neu ermitteln
     p.weatherSrc = el.value ? "manual" : ""; if (!el.value) { p.wx = null; p.wxTried = false; queueWeather(p); }
   }
+  const ce = el.closest(".card").querySelector(".chips"); if (ce) ce.innerHTML = chipsHtml(p); // nur Chips, Eingabefelder bleiben (Android-Tastatur)
   renderPagesOnly();
 });
-let pagesT; function renderPagesOnly() { clearTimeout(pagesT); pagesT = setTimeout(render, 250); }
+let pagesT; function renderPagesOnly() { clearTimeout(pagesT); pagesT = setTimeout(() => render(true), 250); }
 $("#pages").addEventListener("click", (e) => { const s = e.target.closest(".sheet"); if (!s) return; const i = +s.dataset.page; bigPage = bigPage === i ? -1 : i; render(); });
 $("#pages").addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("sheet")) { e.preventDefault(); e.target.click(); } });
 $("#sortBtn").addEventListener("click", () => { photos.sort((a, b) => dtKey(a.dt) - dtKey(b.dt)); render(); });

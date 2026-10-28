@@ -2,6 +2,11 @@
 
 Alle nennenswerten Änderungen. Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.7.1] – 2026-10-28
+
+### Behoben
+- Android: Beim Tippen von Bemerkung, Ort oder Wetter flackerten Bildschirm und Tastatur. Die Fotoliste wurde nach jeder Eingabe komplett neu aufgebaut; jetzt werden nur noch Seitenvorschau, Statistik und die Status-Chips aktualisiert, die Eingabefelder bleiben unberührt.
+
 ## [0.7.0] – 2026-10-18
 
 ### Neu

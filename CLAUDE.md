@@ -35,7 +35,7 @@ Diese Datei liest Claude (Claude Code / Cowork) automatisch, wenn im Projektordn
 
 ## Repository und Veröffentlichung
 
-- GitHub: https://github.com/simsum/foto-protokoll (öffentlich, MIT). Webseite über GitHub Pages: https://simsum.github.io/foto-protokoll/ (Workflow `pages.yml`, veröffentlicht `dist/Foto-Protokoll.html` bei jedem Push auf `main`). `ci.yml` führt die Tests aus.
+- GitHub: https://github.com/simsum/foto-protokoll (öffentlich, MIT). Webseite über GitHub Pages: https://simsum.github.io/foto-protokoll/ (Workflow `pages.yml`, veröffentlicht `dist/Foto-Protokoll.html` bei jedem Push auf `main`). `ci.yml` führt die Tests aus. `release.yml` erstellt nach erfolgreichen Tests auf `main` automatisch ein GitHub-Release (Tag `v<version>`, Notizen aus dem passenden `CHANGELOG.md`-Abschnitt, Anhang `dist/Foto-Protokoll.html`), sobald die Version in `package.json` noch keinen Tag hat. Fehlt der CHANGELOG-Abschnitt, schlägt der Workflow fehl.
 - Es wird nur von diesem Rechner aus gepusht, direkt auf `main`. Commit-Adresse (nur in diesem Repo gesetzt): GitHub-noreply von `simsum`.
 - `git push` läuft über einen Terminal-Tab der App (Anmeldung über den Git Credential Manager im Browser); aus der Werkzeug-Shell sind keine Login-Abfragen möglich.
 - Der Projektordner liegt in Resilio Sync. Bewusst ohne Ausschlussliste belassen.

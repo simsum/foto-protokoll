@@ -13,7 +13,7 @@ Das Tool ist eine einzige HTML-Datei. Es läuft komplett im Browser, Fotos werde
 | Weg | Ort aus GPS | Hinweis |
 |---|---|---|
 | **Webseite**: [simsum.github.io/foto-protokoll](https://simsum.github.io/foto-protokoll/) (GitHub Pages) | Straße, Hausnummer, PLZ und Ort über OpenStreetMap | Einfach die Seite öffnen |
-| **Lokal**: [`dist/Foto-Protokoll.html`](dist/Foto-Protokoll.html) herunterladen und doppelklicken | Straße, Hausnummer, PLZ und Ort über OpenStreetMap | Funktioniert ohne Server |
+| **Lokal**: [`dist/Foto-Protokoll.html`](dist/Foto-Protokoll.html) oder die Datei aus dem [neuesten Release](https://github.com/simsum/foto-protokoll/releases/latest) herunterladen und doppelklicken | Straße, Hausnummer, PLZ und Ort über OpenStreetMap | Funktioniert ohne Server |
 | **Als Claude-Artifact** | Nur nächster Ort aus der eingebauten Liste | Die Artifact-Umgebung blockiert fremde Server |
 
 Ohne Internet bleibt alles nutzbar. Den Ort bestimmt das Tool dann offline aus der eingebauten Ortsliste („Bamberg“, „bei Pisa (1,5 km), Italien“). Beim ersten Öffnen werden die Bibliotheken für PDF und EXIF aus dem Netz geladen (cdnjs, jsDelivr).

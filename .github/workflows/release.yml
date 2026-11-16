@@ -1,0 +1,88 @@
+name: Release
+
+# Erstellt ein GitHub-Release, sobald auf main eine neue Version steht.
+# Ablauf: Version in package.json erhöhen, CHANGELOG.md ergänzen, pushen.
+# Nach erfolgreichen Tests (Workflow „Tests“) wird – falls es den Tag
+# v<version> noch nicht gibt – der Tag gesetzt und ein Release mit dem
+# passenden CHANGELOG-Abschnitt und dist/Foto-Protokoll.html angelegt.
+# Manuell auslösbar über „Run workflow“ (nimmt den aktuellen Stand von main).
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Version lesen und vorhandenen Tag prüfen
+        id: ver
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "Tag v$VERSION gibt es schon – kein neues Release."
+            echo "neu=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "neu=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.ver.outputs.neu == 'true'
+        with:
+          node-version: 22
+
+      - name: dist/ prüfen
+        if: steps.ver.outputs.neu == 'true'
+        run: |
+          node scripts/build.mjs
+          git diff --exit-code -- dist/ || (echo "dist/ ist veraltet – bitte 'npm run build' ausführen und committen" && exit 1)
+
+      - name: Release-Notizen aus CHANGELOG.md
+        if: steps.ver.outputs.neu == 'true'
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { an = 1; next }
+            an && /^## \[/ { exit }
+            an { print }
+          ' CHANGELOG.md > notizen.md
+          if ! grep -q '[^[:space:]]' notizen.md; then
+            echo "In CHANGELOG.md fehlt der Abschnitt „## [$VERSION]“." && exit 1
+          fi
+          {
+            echo
+            echo "---"
+            echo "**Herunterladen:** \`Foto-Protokoll.html\` unten unter *Assets* speichern und im Browser öffnen."
+            echo "Online: https://simsum.github.io/foto-protokoll/"
+          } >> notizen.md
+          cat notizen.md
+
+      - name: Release erstellen
+        if: steps.ver.outputs.neu == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          DATUM=$(grep -m1 -oP "^## \[$VERSION\] – \K[0-9-]+" CHANGELOG.md || true)
+          gh release create "v$VERSION" dist/Foto-Protokoll.html \
+            --target "$SHA" \
+            --title "v$VERSION${DATUM:+ – $DATUM}" \
+            --notes-file notizen.md
